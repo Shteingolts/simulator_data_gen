@@ -1,0 +1,303 @@
+LAMMPS (23 Jun 2022 - Update 4)
+  using 1 OpenMP thread(s) per MPI task
+#area fraction
+# 0.85 is in the liquid state at T=1
+# 0.90 is a crystalline solid)
+variable afrac  equal 1.00
+
+#number of particles in 20x20 area
+variable npart  equal ${afrac}*20
+variable npart  equal 1*20
+
+#temperature (in reduced units)
+#variable temp_start equal 2		#The temperature the simulation #starts in (high so samples are independent).
+#variable temp_end   equal 2	#The temparture the simulation ends in and #which is sampled.
+ variable iter   equal 1
+ variable Pres   equal 0.5
+
+
+#we use the LJ potential epsilon as energy scale,
+#and sigma as length scale.
+units		lj
+dimension 2
+atom_style	sphere
+boundary        p p p
+neighbor        0.5   bin
+neigh_modify    every 1 delay 0 check yes
+
+
+#read_restart restart_cooled
+# create 2D box
+region box block -10.0 10.0 -10.0 10.0 -0.1 0.1
+create_box 4 box
+Created orthogonal box = (-10 -10 -0.1) to (10 10 0.1)
+  1 by 1 by 1 MPI processor grid
+
+
+#put z=0 all the time
+fix 2d  all enforce2d
+
+comm_modify vel yes
+
+
+#put the particles randomly into the box
+create_atoms 1 random ${npart} 196146 NULL # overlap 2.5 maxtry 500
+create_atoms 1 random 20 196146 NULL 
+Created 20 atoms
+  using lattice units in orthogonal box = (-10 -10 -0.1) to (10 10 0.1)
+  create_atoms CPU = 0.000 seconds
+create_atoms 2 random ${npart} 319979 NULL # overlap 2.5 maxtry 500
+create_atoms 2 random 20 319979 NULL 
+Created 20 atoms
+  using lattice units in orthogonal box = (-10 -10 -0.1) to (10 10 0.1)
+  create_atoms CPU = 0.000 seconds
+create_atoms 3 random ${npart} 295382 NULL # overlap 2.5 maxtry 500
+create_atoms 3 random 20 295382 NULL 
+Created 20 atoms
+  using lattice units in orthogonal box = (-10 -10 -0.1) to (10 10 0.1)
+  create_atoms CPU = 0.000 seconds
+create_atoms 4 random ${npart} 7549 NULL # overlap 2.5 maxtry 500
+create_atoms 4 random 20 7549 NULL 
+Created 20 atoms
+  using lattice units in orthogonal box = (-10 -10 -0.1) to (10 10 0.1)
+  create_atoms CPU = 0.000 seconds
+
+
+
+# create groups named size1 to size4 of 4 types of atoms defined above
+group size1 type 1
+20 atoms in group size1
+group size2 type 2
+20 atoms in group size2
+group size3 type 3
+20 atoms in group size3
+group size4 type 4
+20 atoms in group size4
+
+
+# sets the sizes of atoms within the defined groups
+# why these particular sizes where choosen? do they correspond to real-world systems?
+set group size1 diameter 1.60
+Setting atom values ...
+  20 settings made for diameter
+set group size2 diameter 1.30
+Setting atom values ...
+  20 settings made for diameter
+set group size3 diameter 1.00
+Setting atom values ...
+  20 settings made for diameter
+set group size4 diameter 0.70
+Setting atom values ...
+  20 settings made for diameter
+
+
+#Define Soft granualr potential forces (as done in Reid paper).
+pair_style gran/hooke 1.0 0.0 0.0 0.0 0.0 0
+pair_coeff * *
+
+#minimize energy first to avoid overlapping particles
+minimize 1e-10 1e-10 1000 1000
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 2.1
+  ghost atom cutoff = 2.1
+  binsize = 1.05, bins = 20 20 1
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair gran/hooke, perpetual
+      attributes: half, newton on, size
+      pair build: half/size/bin/newton
+      stencil: half/bin/2d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 5.424 | 5.424 | 5.424 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0              0              0              0              0.0097252046 
+         1   0              0              0              0              0.0097252046 
+Loop time of 0.000123027 on 1 procs for 1 steps with 80 atoms
+
+100.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = linesearch alpha is zero
+  Energy initial, next-to-last, final = 
+                     0                  0                  0
+  Force two-norm initial, final = 3.510394 3.510394
+  Force max component initial, final = 1.3363746 1.3363746
+  Final line search alpha, max atom move = 7.1362798e-08 9.5367432e-08
+  Iterations, force evaluations = 1 21
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 3.4285e-05 | 3.4285e-05 | 3.4285e-05 |   0.0 | 27.87
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 3.9067e-05 | 3.9067e-05 | 3.9067e-05 |   0.0 | 31.75
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 1.0584e-05 | 1.0584e-05 | 1.0584e-05 |   0.0 |  8.60
+Other   |            | 3.909e-05  |            |       | 31.77
+
+Nlocal:             80 ave          80 max          80 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:             37 ave          37 max          37 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:             63 ave          63 max          63 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 63
+Ave neighs/atom = 0.7875
+Neighbor list builds = 0
+Dangerous builds = 0
+#fix 10 all box/relax aniso ${Pres} vmax 0.001
+
+reset_timestep 0
+
+fix 10 all npt/sphere temp 0.025 0.001 6.0 iso 0.1 0.1 0.6 disc
+
+
+#output time step, temperature, average kinetic and potential energy
+thermo_style custom step temp  ke pe
+thermo		100
+dump            1 all atom 10 traj.lmpstrj.${iter}
+dump            1 all atom 10 traj.lmpstrj.1
+
+#time step of integrator
+timestep	0.006
+
+#number of integration steps to run
+run		10000
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 5.302 | 5.302 | 5.302 Mbytes
+   Step          Temp          KinEng         PotEng    
+         0   0              0              0            
+       100   0.081532965    0.080513803    0            
+       200   0.10562484     0.10430453     0            
+       300   0.095270464    0.094079583    0            
+       400   0.093884614    0.092711057    0            
+       500   0.092016471    0.090866265    0            
+       600   0.091340486    0.09019873     0            
+       700   0.090520697    0.089389189    0            
+       800   0.082948544    0.081911687    0            
+       900   0.08077235     0.079762696    0            
+      1000   0.072907691    0.071996344    0            
+      1100   0.070876014    0.069990064    0            
+      1200   0.072391445    0.071486552    0            
+      1300   0.069639124    0.068768635    0            
+      1400   0.06908244     0.068218909    0            
+      1500   0.061828861    0.061056       0            
+      1600   0.059830061    0.059082186    0            
+      1700   0.057100008    0.056386258    0            
+      1800   0.051468583    0.050825226    0            
+      1900   0.054607117    0.053924528    0            
+      2000   0.053357612    0.052690642    0            
+      2100   0.052902719    0.052241435    0            
+      2200   0.050430365    0.049799985    0            
+      2300   0.05024432     0.049616266    0            
+      2400   0.041155799    0.040641352    0            
+      2500   0.038640923    0.038157912    0            
+      2600   0.038192818    0.037715408    0            
+      2700   0.038427516    0.037947172    0            
+      2800   0.043574673    0.04302999     0            
+      2900   0.04211431     0.041587881    0            
+      3000   0.037217038    0.036751825    0            
+      3100   0.031666896    0.03127106     0            
+      3200   0.032968974    0.032556862    0            
+      3300   0.035442517    0.034999486    0            
+      3400   0.036664756    0.036206447    0            
+      3500   0.035704253    0.035257949    0            
+      3600   0.030414428    0.030034247    0            
+      3700   0.03113432     0.030745141    0            
+      3800   0.02289607     0.022609869    0            
+      3900   0.026827289    0.026491948    0            
+      4000   0.02730016     0.026958908    0            
+      4100   0.031246787    0.030856202    0            
+      4200   0.02965109     0.029280452    0            
+      4300   0.024558364    0.024251384    0            
+      4400   0.025643823    0.025323275    0            
+      4500   0.02621004     0.025882415    0            
+      4600   0.025451887    0.025133739    0            
+      4700   0.024573114    0.02426595     0            
+      4800   0.022578054    0.022295828    0            
+      4900   0.022634993    0.022352055    0            
+      5000   0.026091377    0.025765235    0            
+      5100   0.023686399    0.023390319    0            
+      5200   0.022970029    0.022682904    0            
+      5300   0.018951665    0.01871477     0            
+      5400   0.02087959     0.020618596    0            
+      5500   0.018874998    0.01863906     0            
+      5600   0.019105625    0.018866805    0            
+      5700   0.017031168    0.016818278    0            
+      5800   0.016878441    0.016667461    0            
+      5900   0.017782238    0.01755996     0            
+      6000   0.016993103    0.016780689    0            
+      6100   0.017307208    0.017090868    0            
+      6200   0.017770304    0.017548175    0            
+      6300   0.016469408    0.016263541    0            
+      6400   0.015515447    0.015321504    0            
+      6500   0.014480587    0.01429958     0            
+      6600   0.016254827    0.016051642    0            
+      6700   0.016232105    0.016029204    0            
+      6800   0.015542752    0.015348468    0            
+      6900   0.015934471    0.01573529     0            
+      7000   0.016603712    0.016396166    0            
+      7100   0.012211928    0.012059279    0            
+      7200   0.013464601    0.013296293    0            
+      7300   0.01220103     0.012048517    0            
+      7400   0.013757419    0.013585451    0            
+      7500   0.011174388    0.011034708    0            
+      7600   0.012474479    0.012318548    0            
+      7700   0.013180812    0.013016052    0            
+      7800   0.014483163    0.014302124    0            
+      7900   0.013705844    0.013534521    0            
+      8000   0.011513096    0.011369182    0            
+      8100   0.011578609    0.011433877    0            
+      8200   0.010526474    0.010394893    0            
+      8300   0.010666597    0.010533265    0            
+      8400   0.010790701    0.010655817    0            
+      8500   0.0093284078   0.0092118027   0            
+      8600   0.0096411511   0.0095206367   0            
+      8700   0.0090493463   0.0089362295   0            
+      8800   0.010378727    0.010248993    0            
+      8900   0.0092265354   0.0091112037   0            
+      9000   0.009802098    0.0096795718   0            
+      9100   0.0096690683   0.009548205    0            
+      9200   0.0080258398   0.0079255168   0            
+      9300   0.0079720709   0.00787242     0            
+      9400   0.0068848652   0.0067988044   0            
+      9500   0.0060031036   0.0059280648   0            
+      9600   0.0091481155   0.0090337641   0            
+      9700   0.0067042706   0.0066204673   0            
+      9800   0.0070107667   0.0069231321   0            
+      9900   0.0070867909   0.006998206    0            
+     10000   0.0059263745   0.0058522948   0            
+Loop time of 0.238504 on 1 procs for 10000 steps with 80 atoms
+
+Performance: 21735499.466 tau/day, 41928.047 timesteps/s
+96.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.073248   | 0.073248   | 0.073248   |   0.0 | 30.71
+Neigh   | 0.0044081  | 0.0044081  | 0.0044081  |   0.0 |  1.85
+Comm    | 0.038354   | 0.038354   | 0.038354   |   0.0 | 16.08
+Output  | 0.027886   | 0.027886   | 0.027886   |   0.0 | 11.69
+Modify  | 0.088376   | 0.088376   | 0.088376   |   0.0 | 37.05
+Other   |            | 0.006231   |            |       |  2.61
+
+Nlocal:             80 ave          80 max          80 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:             87 ave          87 max          87 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:            270 ave         270 max         270 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 270
+Ave neighs/atom = 3.375
+Neighbor list builds = 314
+Dangerous builds = 9
+
+write_data coord.dat
+System init for write_data ...
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+Total wall time: 0:00:00
