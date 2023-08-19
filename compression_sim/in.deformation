@@ -43,8 +43,6 @@
 #  init.mod. 
 #
 
-
-
 variable dt equal 0.01
 variable strain equal 0.05
 variable srate equal 1e-4
@@ -62,32 +60,16 @@ comm_modify mode single cutoff 10.0 vel yes
 atom_modify sort 0 0
 
 
-
 # Compute initial state
-
-#dump rela all atom 1 traj_relax.lmpstrj
 fix 3 all box/relax x 0 y 0 # xy 0  #MS comment: relax if the network is periodic
 minimize ${etol} ${ftol} ${maxiter} ${maxeval}
-#dump rela all atom 1 traj_relax.lmpstrj
 thermo 100
 unfix 3
-
 fix 2d all enforce2d
 
 
-
-#dump dump0 all xyz 1000000 cfg0.xyz
-#dump_modify dump0 format line "%d %20.10g %20.10g %20.10g"
-#minimize ${etol} ${ftol} ${maxiter} ${maxeval}
-
-#undump rela
-
-#write_restart restart.equil
-
 # These formulas define the derivatives w.r.t. strain components
 # Constants uses $, variables use v_ 
-
-
 timestep        ${dt}
 variable nsteps equal round(${strainsteps})
 
@@ -101,20 +83,11 @@ fix             6 all nph y 0.0 0.0 10 ptemp 0.1 # x 0.0 0.0 10
 
 #fix             6 all nph x 0.0 0.0 10 
 fix     	9 all deform 1 x erate -${srate} units box remap x
-
 #fix     8 all deform 1 xy erate ${srate} units box remap x
-
-
-
 #fix    10 all ave/time
-
-dump 1 all atom 250 deform_dump.lammpstrj
-
 
 #To avoid flying ice cube phenomenon:
 #fix 21 all momentum 100 linear 1 1 1 angular
 
-
+dump 1 all atom 250 deform_dump.lammpstrj
 run  ${nsteps}
-
-

@@ -1,24 +1,22 @@
 import os
 import random
-import subprocess
 import shutil
+import subprocess
 from distutils.dir_util import copy_tree
+from os import getcwd, makedirs, path
+
 import network
-import helpers
+
+# import helpers
 
 NETWORKS: int = 50
 DATAPOINTS: int = 2000
 COMPRESSION_DEGREE = 0.05
 
-data_dir = os.getcwd()
-print(data_dir)
-
-for n in range(NETWORKS):
-    os.makedirs(os.path.join(data_dir, str(n+1)))
 
 def run_lammps_calc(
     calculation_directory: str,
-    input_file: str = 'lammps.in',
+    input_file: str = "lammps.in",
     mode: str = "single",
     num_threads: int = 1,
     num_procs: int = 1,
@@ -26,7 +24,7 @@ def run_lammps_calc(
     """
     A helper function which runs the external lammps code.
     """
-    input_file_path = os.path.join(calculation_directory, input_file)
+    input_file_path = path.join(calculation_directory, input_file)
     mpi_command = f"mpirun -np {num_procs} lmp -in in.stress".split()
     command = f"lmp -in {input_file_path}".split()
 
@@ -37,60 +35,76 @@ def run_lammps_calc(
     elif mode == "mpi":
         subprocess.run(mpi_command, stdout=subprocess.DEVNULL)
 
+
 def construct_network(directory: str, network_filename: str):
     new_network = network.Network.from_atoms(
-        os.path.join(directory, 'coord.dat'),
+        os.path.join(directory, "coord.dat"),
         include_angles=False,
         include_dihedrals=False,
         include_default_masses=10000,
-        )
+    )
     new_network.write_to_file(network_filename)
 
+
 def extract_coords_to_csv(input_file: str):
-    with open(input_file, 'r', encoding='utf8') as f:
-        content = f.readlines()
-        timesteps: dict[int, dict[int, tuple]] = {}
-        for line in content:
-            
+
+    # with open(input_file, 'r', encoding='utf8') as f:
+    #     content = f.readlines()
+    #     timesteps: dict[int, dict[int, tuple]] = {}
+    #     for line in content:
+    #         pass
+
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+print(f'Script: {script_dir}')
+data_dir = path.join(script_dir, "data")
+print(f"Data: {data_dir}")
+
+
+for n in range(NETWORKS):
+    makedirs(path.join(data_dir, str(n + 1)))
 
 dirs = os.listdir(data_dir)
-dirs = [directory for directory in dirs if (os.path.isdir(directory) and directory.isnumeric())]
-dirs.sort()
+dirs.sort(key=lambda x: int(x))
 
 for n, network_dir in enumerate(dirs):
+    target_dir = path.join(data_dir, network_dir)
+    print(target_dir)
+    print(os.listdir(target_dir))
 
-    target_dir = os.path.join(data_dir, network_dir)
-    # print(f'Target dir {n}: {target_dir}')
-    # put lammps calc file into the directory
-    shutil.copy(os.path.abspath(os.path.join(data_dir, 'lammps.in')), os.path.abspath(target_dir))
-    with open(os.path.join(target_dir, 'lammps.in'), 'r', encoding='utf8') as f:
+    # copy lammps calcultion files into each network directory
+    shutil.copy(path.join(script_dir, "lammps.in"), path.abspath(target_dir))
+
+    with open(path.join(target_dir, "lammps.in"), "r", encoding="utf8") as f:
         content = f.readlines()
         for n, line in enumerate(content):
-            if 'create_atoms' in line:
+            # For each network to be different, we need to put a random seed
+            # into the lammps input file in the `create atoms` command.
+            if "create_atoms" in line:
                 line = line.split()
                 line[4] = str(random.randint(1, 999999))
-                line = ' '.join(line) + '\n'
+                line = " ".join(line) + "\n"
                 content[n] = line
-    
-    with open(os.path.join(target_dir, 'lammps.in'), 'w', encoding='utf8') as f:
+    # after changing the lines, rewrite the input file
+    with open(path.join(target_dir, "lammps.in"), "w", encoding="utf8") as f:
         f.writelines(content)
 
     # run lammps calc to get coordinates
-    run_lammps_calc(target_dir, input_file='lammps.in')
-    
-    # construct_network
-    construct_network(target_dir, 'network.lmp')
+    run_lammps_calc(target_dir, input_file="lammps.in")
 
-    # copy compression simulation files and a network file into a subdirectory
-    compression_dir = os.path.abspath(os.path.join(target_dir, 'compression_sim'))
-    original_compression_files = os.path.abspath(os.path.join(data_dir, 'compression_sim'))
-    # print(f'Compression dir: {compression_dir}')
+    # construct_network
+    construct_network(target_dir, "network.lmp")
+
+    # copy lammps compression simulation files and a network file into a subdirectory
+    # within the network directory called `compression_sim`
+    compression_dir = os.path.abspath(os.path.join(target_dir, "compression_sim"))
+    original_compression_files = os.path.abspath(
+        os.path.join(script_dir, "compression_sim")
+    )
     copy_tree(original_compression_files, compression_dir)
     shutil.copy(
-        os.path.abspath(os.path.join(target_dir, 'network.lmp')),
-        compression_dir)
+        os.path.abspath(os.path.join(target_dir, "network.lmp")), compression_dir
+    )
 
     # run compression simulation
-    run_lammps_calc(compression_dir, input_file='in.deformation')
-    
-
+    run_lammps_calc(compression_dir, input_file="in.deformation")
