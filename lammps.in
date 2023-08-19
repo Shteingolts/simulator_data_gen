@@ -4,7 +4,7 @@
 variable afrac  equal 1.00
 
 #number of particles in 20x20 area
-variable npart  equal ${afrac}*20
+variable npart  equal ${afrac}*25
 
 #temperature (in reduced units)
 #variable temp_start equal 2		#The temperature the simulation #starts in (high so samples are independent).
@@ -36,10 +36,10 @@ comm_modify vel yes
 
 
 #put the particles randomly into the box
-create_atoms 1 random ${npart} 1 NULL # overlap 2.5 maxtry 500
-create_atoms 2 random ${npart} 2 NULL # overlap 2.5 maxtry 500
-create_atoms 3 random ${npart} 3 NULL # overlap 2.5 maxtry 500
-create_atoms 4 random ${npart} 4 NULL # overlap 2.5 maxtry 500
+create_atoms 1 random ${npart} 1 NULL overlap 0.5 maxtry 100
+create_atoms 2 random ${npart} 2 NULL overlap 0.5 maxtry 100
+create_atoms 3 random ${npart} 3 NULL overlap 0.5 maxtry 100
+create_atoms 4 random ${npart} 4 NULL overlap 0.5 maxtry 100
 
 
 
