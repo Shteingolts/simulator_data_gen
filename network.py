@@ -128,7 +128,6 @@ class Bond:
     All bonds have the same elasticity. The bond coefficient is 1 / d^2,
     where d is the bond length.
     """
-
     atom1: Atom
     atom2: Atom
     length: float
@@ -140,19 +139,19 @@ class Bond:
         simulation box."""
         self.atom1 = atom1
 
-        # create a list of of all possible variants of atom 2
-        # and see which one is the closest to the 1st atom.
-        atom2_variants = make_surrounding([atom2], box)
-        atom2_variants.append(atom2)
-        min_dist = atom1.dist(atom2_variants[0])
-        closest: Atom = atom2_variants[0]
-        for variant in atom2_variants[1:]:
-            if atom1.dist(variant) < min_dist:
-                min_dist = atom1.dist(variant)
-                closest = variant
+        # # create a list of of all possible variants of atom 2
+        # # and see which one is the closest to the 1st atom.
+        # atom2_variants = make_surrounding([atom2], box)
+        # atom2_variants.append(atom2)
+        # min_dist = atom1.dist(atom2_variants[0])
+        # closest: Atom = atom2_variants[0]
+        # for variant in atom2_variants[1:]:
+        #     if atom1.dist(variant) < min_dist:
+        #         min_dist = atom1.dist(variant)
+        #         closest = variant
 
-        self.atom2 = closest
-        self.length = atom1.dist(closest)
+        self.atom2 = atom2
+        self.length = atom1.dist(atom2)
         self.bond_coefficient = 1 / (self.length**2)
 
     def __repr__(self) -> str:
@@ -538,6 +537,7 @@ class Network:
         include_dihedrals: bool = True,
         zero_z: bool = True,
         include_default_masses: int = 1,
+        periodicity=True
     ) -> Network:
         """
         Reads the lammps data file with only atoms present.
@@ -557,7 +557,7 @@ class Network:
         box = Box.from_data_file(input_file)
         # print(f"{box}")
         atoms = get_atoms(content)
-        bonds = make_bonds(atoms, box)
+        bonds = make_bonds(atoms, box, periodicity=periodicity)
 
         # we assume that there's at least one dangling bead
         # if not, nothing bad will happen anyway
@@ -954,7 +954,7 @@ def make_surrounding(atoms: list[Atom], box: Box, dimensions: int = 2) -> list[A
     return list(surrounding_atoms)
 
 
-def make_bonds(atoms: list[Atom], box: Box) -> list:
+def make_bonds(atoms: list[Atom], box: Box, periodicity=False) -> list:
     bonds = set()
     for atom_k in atoms:
         for atom_j in atoms:
@@ -966,23 +966,25 @@ def make_bonds(atoms: list[Atom], box: Box) -> list:
                     atom_k.bonded.append(atom_j.atom_id)
                     atom_k.n_bonds += 1
 
-    edges = [atom for atom in atoms if atom.on_edge(box, 1.0)]
-    neighbors = make_surrounding(atoms, box)
-    edge_neighbors = [atom for atom in neighbors if atom.on_edge(box, 1.0)]
-
     extra_bonds = set()
-    for main_atom in edges:
-        for outside_atom in edge_neighbors:
-            if main_atom.dist(outside_atom) <= (
-                (main_atom.diameter / 2) + outside_atom.diameter / 2
-            ):
-                extra_bonds.add(Bond(main_atom, outside_atom, box))
-                main_atom.bonded.append(outside_atom.atom_id)
-                main_atom.n_bonds += 1
+    if periodicity:
+        edges = [atom for atom in atoms if atom.on_edge(box, 1.0)]
+        neighbors = make_surrounding(atoms, box)
+        edge_neighbors = [atom for atom in neighbors if atom.on_edge(box, 1.0)]
+
+        for main_atom in edges:
+            for outside_atom in edge_neighbors:
+                if main_atom.dist(outside_atom) <= (
+                    (main_atom.diameter / 2) + outside_atom.diameter / 2
+                ):
+                    extra_bonds.add(Bond(main_atom, outside_atom, box))
+                    main_atom.bonded.append(outside_atom.atom_id)
+                    main_atom.n_bonds += 1
+    
     return list(bonds.union(extra_bonds))
 
 
-def main():
+if __name__ == "__main__":
     usage_info = "\n[USAGE]:\n\n    ./network.py target_file [OPTIONAL] out_file.\n"
     if len(sys.argv) < 2:
         print("\n[ERROR]: target file was not provided.")

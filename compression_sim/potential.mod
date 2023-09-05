@@ -16,4 +16,5 @@ timestep	0.001
 # Setup output
 thermo		500
 thermo_style custom step temp pe ebond eangle edihed press pxx pyy pzz pxy pxz pyz lx ly lz vol
+# thermo_style custom step temp atoms vx vy vz
 thermo_modify norm no

@@ -25,7 +25,7 @@ neigh_modify    every 1 delay 0 check yes
 
 #read_restart restart_cooled 
 # create 2D box
-region box block -10.0 10.0 -10.0 10.0 -0.1 0.1
+region box block -7.0 7.0 -7.0 7.0 -0.1 0.1
 create_box 4 box
 
 
@@ -52,10 +52,10 @@ group size4 type 4
 
 # sets the sizes of atoms within the defined groups
 # why these particular sizes where choosen? do they correspond to real-world systems?
-set group size1 diameter 1.60
-set group size2 diameter 1.30
-set group size3 diameter 1.00
-set group size4 diameter 0.70
+set group size1 diameter 1.5
+set group size2 diameter 1.35
+set group size3 diameter 1.2
+set group size4 diameter 1.05
 
 
 #Define Soft granualr potential forces (as done in Reid paper).
@@ -80,6 +80,6 @@ dump            1 all atom 10 traj.lmpstrj.${iter}
 timestep	0.006
 
 #number of integration steps to run
-run		10000
+run		40000
 
 write_data coord.dat

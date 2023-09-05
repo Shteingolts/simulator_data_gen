@@ -44,8 +44,8 @@
 #
 
 variable dt equal 0.01
-variable strain equal 0.05
-variable srate equal 1e-4
+variable strain equal 0.025
+variable srate equal 1e-6
 variable M equal 1000 # averaging time for properties
 variable strainsteps equal ${strain}/${dt}/${srate}
 
@@ -64,6 +64,7 @@ atom_modify sort 0 0
 fix 3 all box/relax x 0 y 0 # xy 0  #MS comment: relax if the network is periodic
 minimize ${etol} ${ftol} ${maxiter} ${maxeval}
 thermo 100
+# thermo_style custom step atoms temp press c_vx c_vy c_vz
 unfix 3
 fix 2d all enforce2d
 
@@ -89,5 +90,5 @@ fix     	9 all deform 1 x erate -${srate} units box remap x
 #To avoid flying ice cube phenomenon:
 #fix 21 all momentum 100 linear 1 1 1 angular
 
-dump 1 all atom 250 deform_dump.lammpstrj
+dump 1 all custom 200 dump.lammpstrj id x y z vx vy vz
 run  ${nsteps}
