@@ -44,8 +44,8 @@
 #
 
 variable dt equal 0.01
-variable strain equal 0.025
-variable srate equal 1e-6
+variable strain equal 0.2
+variable srate equal 1e-5
 variable M equal 1000 # averaging time for properties
 variable strainsteps equal ${strain}/${dt}/${srate}
 
@@ -61,11 +61,11 @@ atom_modify sort 0 0
 
 
 # Compute initial state
-fix 3 all box/relax x 0 y 0 # xy 0  #MS comment: relax if the network is periodic
+#fix 3 all box/relax x 0 y 0 # xy 0  #MS comment: relax if the network is periodic
 minimize ${etol} ${ftol} ${maxiter} ${maxeval}
 thermo 100
 # thermo_style custom step atoms temp press c_vx c_vy c_vz
-unfix 3
+#unfix 3
 fix 2d all enforce2d
 
 
@@ -75,9 +75,9 @@ timestep        ${dt}
 variable nsteps equal round(${strainsteps})
 
 fix             4 all nve
-fix             5 all langevin 0.1 0.1 1 904297
+fix             5 all langevin 0.0001 0.0001 1 904297
 #fix		6 all press/berendsen y  0.0 0.0 1 x 0.0 0.0 10
-fix             6 all nph y 0.0 0.0 10 ptemp 0.1 # x 0.0 0.0 10
+fix             6 all nph y 0.0 0.0 10 ptemp 0.01 # x 0.0 0.0 10
 
 # For PLUMED2
 # fix 22 all plumed plumedfile plumed.dat outfile plumed.out
@@ -90,5 +90,5 @@ fix     	9 all deform 1 x erate -${srate} units box remap x
 #To avoid flying ice cube phenomenon:
 #fix 21 all momentum 100 linear 1 1 1 angular
 
-dump 1 all custom 200 dump.lammpstrj id x y z vx vy vz
+dump 1 all custom 2000 dump.lammpstrj id x y z vx vy vz
 run  ${nsteps}

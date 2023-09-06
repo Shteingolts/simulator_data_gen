@@ -133,25 +133,28 @@ class Bond:
     length: float
     bond_coefficient: float
 
-    def __init__(self, atom1: Atom, atom2: Atom, box: Box):
+    def __init__(self, atom1: Atom, atom2: Atom, box: Box, true_length: bool = True):
         """Due to the periodicity of the network, when making a bond between two atoms
         one needs to find the closest pair of two atoms, which may not be in the same
         simulation box."""
         self.atom1 = atom1
 
-        # # create a list of of all possible variants of atom 2
-        # # and see which one is the closest to the 1st atom.
-        # atom2_variants = make_surrounding([atom2], box)
-        # atom2_variants.append(atom2)
-        # min_dist = atom1.dist(atom2_variants[0])
-        # closest: Atom = atom2_variants[0]
-        # for variant in atom2_variants[1:]:
-        #     if atom1.dist(variant) < min_dist:
-        #         min_dist = atom1.dist(variant)
-        #         closest = variant
+        # create a list of of all possible variants of atom 2
+        # and see which one is the closest to the 1st atom.
+        atom2_variants = make_surrounding([atom2], box)
+        atom2_variants.append(atom2)
+        min_dist = atom1.dist(atom2_variants[0])
+        closest: Atom = atom2_variants[0]
+        for variant in atom2_variants[1:]:
+            if atom1.dist(variant) < min_dist:
+                min_dist = atom1.dist(variant)
+                closest = variant
 
         self.atom2 = atom2
-        self.length = atom1.dist(atom2)
+        if true_length:
+            self.length = atom1.dist(closest)
+        else:
+            self.length = atom1.dist(atom2)
         self.bond_coefficient = 1 / (self.length**2)
 
     def __repr__(self) -> str:
@@ -537,7 +540,7 @@ class Network:
         include_dihedrals: bool = True,
         zero_z: bool = True,
         include_default_masses: int = 1,
-        periodicity=True
+        periodic=True
     ) -> Network:
         """
         Reads the lammps data file with only atoms present.
@@ -557,7 +560,7 @@ class Network:
         box = Box.from_data_file(input_file)
         # print(f"{box}")
         atoms = get_atoms(content)
-        bonds = make_bonds(atoms, box, periodicity=periodicity)
+        bonds = make_bonds(atoms, box, periodic=periodic)
 
         # we assume that there's at least one dangling bead
         # if not, nothing bad will happen anyway
@@ -591,6 +594,7 @@ class Network:
         include_dihedrals=True,
         zero_z=True,
         include_default_masses=True,
+        periodic=True
     ) -> Network:
         """
         Reads the lammps data file and returns a `Network` object.
@@ -954,7 +958,7 @@ def make_surrounding(atoms: list[Atom], box: Box, dimensions: int = 2) -> list[A
     return list(surrounding_atoms)
 
 
-def make_bonds(atoms: list[Atom], box: Box, periodicity=False) -> list:
+def make_bonds(atoms: list[Atom], box: Box, periodic=True) -> list:
     bonds = set()
     for atom_k in atoms:
         for atom_j in atoms:
@@ -967,7 +971,7 @@ def make_bonds(atoms: list[Atom], box: Box, periodicity=False) -> list:
                     atom_k.n_bonds += 1
 
     extra_bonds = set()
-    if periodicity:
+    if periodic:
         edges = [atom for atom in atoms if atom.on_edge(box, 1.0)]
         neighbors = make_surrounding(atoms, box)
         edge_neighbors = [atom for atom in neighbors if atom.on_edge(box, 1.0)]

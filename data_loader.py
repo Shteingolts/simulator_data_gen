@@ -65,7 +65,7 @@ def assemble_data(atoms: list, bonds: list, node_features: str) -> Data:
     ]
 
     edge_index = torch.tensor(np.array(edges_with_indices).T)
-    edge_attr = torch.tensor([[bond.length for bond in bonds]], dtype=torch.float32)
+    edge_attr = torch.tensor([bond.length for bond in bonds], dtype=torch.float32)
 
     match node_features:
         case "dummy":
@@ -74,7 +74,7 @@ def assemble_data(atoms: list, bonds: list, node_features: str) -> Data:
             try:
                 nodes = torch.tensor([[atom.vx, atom.vy] for atom in atoms])
             except AttributeError:
-                raise Exception(f"Atoms don't have velocity info")
+                raise Exception("Atoms don't have velocity info")
         case "coord":
             nodes = torch.tensor([[atom.x, atom.y] for atom in atoms])
         case "full":
