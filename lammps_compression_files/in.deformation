@@ -44,7 +44,7 @@
 #
 
 variable dt equal 0.01
-variable strain equal 0.2
+variable strain equal 0.1
 variable srate equal 1e-5
 variable M equal 1000 # averaging time for properties
 variable strainsteps equal ${strain}/${dt}/${srate}
@@ -90,5 +90,5 @@ fix     	9 all deform 1 x erate -${srate} units box remap x
 #To avoid flying ice cube phenomenon:
 #fix 21 all momentum 100 linear 1 1 1 angular
 
-dump 1 all custom 2000 dump.lammpstrj id x y z vx vy vz
+dump 1 all custom 500 dump.lammpstrj id x y z vx vy vz
 run  ${nsteps}

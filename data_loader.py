@@ -1,3 +1,5 @@
+from os import listdir, path
+
 import numpy as np
 import torch
 from torch_geometric.data import Data
@@ -86,7 +88,7 @@ def assemble_data(atoms: list, bonds: list, node_features: str) -> Data:
 
 
 def parse_dump(
-    dump_file: str, original_network: network.Network, node_features: str
+    dump_file: str, original_network: network.Network, node_features: str = "full"
 ) -> list[Data]:
     with open(dump_file, "r", encoding="utf8") as f:
         content = f.readlines()
@@ -120,12 +122,23 @@ def parse_dump(
     return data_list
 
 
-if __name__ == "__main__":
-    example_network = network.Network.from_data_file(
-        "network_data/1/compression_sim/network.lmp"
-    )
-    example = parse_dump(
-        "network_data/1/compression_sim/dump.lammpstrj", example_network, "full"
-    )
+def bulk_load(data_dir: str) -> list[list[Data]]:
+    network_sims = [
+        path.abspath(path.join(data_dir, directory, "sim"))
+        for directory in listdir(data_dir)
+    ]
 
-    print(example[0].x)
+    data = []
+    for sim in network_sims:
+        current_network = network.Network.from_data_file(path.join(sim, "network.lmp"))
+        dump_file = path.join(sim, "dump.lammpstrj")
+        print(dump_file)
+        data.append(parse_dump(dump_file, current_network))
+
+    return data
+
+
+if __name__ == "__main__":
+    data = bulk_load("network_data")
+    print(f"{len(data)} networks")
+    print(f"{len(data[0])} timesteps")

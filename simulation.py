@@ -12,7 +12,7 @@ def run_lammps_calc(
     input_file: str = "lammps.in",
     mode: str = "single",
     num_threads: int = 1,
-    num_procs: int = 14,
+    num_procs: int = 6,
 ):
     """
     A helper function which runs the external lammps code.

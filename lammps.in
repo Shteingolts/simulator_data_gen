@@ -4,7 +4,7 @@
 variable afrac  equal 1.00
 
 #number of particles in 20x20 area
-variable npart  equal ${afrac}*50
+variable npart  equal ${afrac}*30
 
 #temperature (in reduced units)
 #variable temp_start equal 2		#The temperature the simulation #starts in (high so samples are independent).
@@ -25,7 +25,7 @@ neigh_modify    every 1 delay 0 check yes
 
 #read_restart restart_cooled 
 # create 2D box
-region box block -10.0 10.0 -10.0 10.0 -0.1 0.1
+region box block -7.0 7.0 -7.0 7.0 -0.1 0.1
 create_box 4 box
 
 
@@ -52,10 +52,10 @@ group size4 type 4
 
 # sets the sizes of atoms within the defined groups
 # why these particular sizes where choosen? do they correspond to real-world systems?
-set group size1 diameter 1.8
-set group size2 diameter 1.6
-set group size3 diameter 1.4
-set group size4 diameter 1.2
+set group size1 diameter 1.6
+set group size2 diameter 1.4
+set group size3 diameter 1.2
+set group size4 diameter 1.0
 
 
 #Define Soft granualr potential forces (as done in Reid paper).

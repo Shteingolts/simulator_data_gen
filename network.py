@@ -128,33 +128,19 @@ class Bond:
     All bonds have the same elasticity. The bond coefficient is 1 / d^2,
     where d is the bond length.
     """
+
     atom1: Atom
     atom2: Atom
     length: float
     bond_coefficient: float
 
-    def __init__(self, atom1: Atom, atom2: Atom, box: Box, true_length: bool = True):
+    def __init__(self, atom1: Atom, atom2: Atom):
         """Due to the periodicity of the network, when making a bond between two atoms
         one needs to find the closest pair of two atoms, which may not be in the same
         simulation box."""
         self.atom1 = atom1
-
-        # create a list of of all possible variants of atom 2
-        # and see which one is the closest to the 1st atom.
-        atom2_variants = make_surrounding([atom2], box)
-        atom2_variants.append(atom2)
-        min_dist = atom1.dist(atom2_variants[0])
-        closest: Atom = atom2_variants[0]
-        for variant in atom2_variants[1:]:
-            if atom1.dist(variant) < min_dist:
-                min_dist = atom1.dist(variant)
-                closest = variant
-
         self.atom2 = atom2
-        if true_length:
-            self.length = atom1.dist(closest)
-        else:
-            self.length = atom1.dist(atom2)
+        self.length = atom1.dist(atom2)
         self.bond_coefficient = 1 / (self.length**2)
 
     def __repr__(self) -> str:
@@ -536,11 +522,11 @@ class Network:
     def from_atoms(
         cls,
         input_file: str,
+        periodic: bool = True,
+        include_default_masses: int = 1,
         include_angles: bool = True,
         include_dihedrals: bool = True,
         zero_z: bool = True,
-        include_default_masses: int = 1,
-        periodic=True
     ) -> Network:
         """
         Reads the lammps data file with only atoms present.
@@ -552,7 +538,8 @@ class Network:
         - `include_angles` : bool - whether to include (read or calculate) angles
         - `inclue_dihedrals` : bool - whether to include (read or calculate) dihedrals
         - `zero_z` : bool - whether to set the z coordinates to zero (for 2D networks)
-        - `include_default_masses` : int - wether to include masses for atom. zero means don't.
+        - `include_default_masses` : int - whether to include masses for atom.
+                                           0 to skip.
         """
         with open(input_file, "r", encoding="utf8") as f:
             content = f.readlines()
@@ -568,7 +555,7 @@ class Network:
         steps: int = 1
         while dangling_beads > 0:
             atoms, dangling_beads = delete_dangling(atoms)
-            bonds = make_bonds(atoms, box)
+            bonds = make_bonds(atoms, box, periodic)
             steps += 1
 
         if zero_z:
@@ -590,11 +577,10 @@ class Network:
     def from_data_file(
         cls,
         input_file: str,
-        include_angles=True,
-        include_dihedrals=True,
-        zero_z=True,
-        include_default_masses=True,
-        periodic=True
+        include_default_masses: int = 1,
+        include_angles: bool = True,
+        include_dihedrals: bool = True,
+        zero_z: bool = True,
     ) -> Network:
         """
         Reads the lammps data file and returns a `Network` object.
@@ -646,7 +632,7 @@ class Network:
         atoms = []
         bonds = []
         angles = []
-        # dihedrals = []
+        dihedrals = []
 
         location: dict[str, tuple[int | None, int | None]] = {
             "atoms": tuple(),
@@ -701,18 +687,27 @@ class Network:
                 "[ERROR]: Something went wrong when trying to read atoms from the file."
             )
 
-        if location["bonds"]:
+        if location["bonds"] and location["bond_coeffs"]:
             print(f"Bonds expected: {n_bonds}")
             atoms_map = {atom.atom_id: atom for atom in atoms}
-            for line in content[bonds_start:bonds_end]:
-                data = line.split()
+            for bond_line, bond_coeff_line in zip(
+                content[bonds_start:bonds_end],
+                content[bond_coeffs_start:bond_coeffs_end],
+            ):
+                data = bond_line.split()
                 atom1_id = int(data[2])
                 atom2_id = int(data[3])
                 atom1 = atoms_map[atom1_id]
                 atom2 = atoms_map[atom2_id]
                 atom1.bonded.append(atom2_id)
                 atom2.bonded.append(atom1_id)
-                bonds.append(Bond(atom1, atom2, box))
+
+                # reading bond length and coeff from file here to avoid
+                # unrealistic bond lengths in case the network is periodic
+                bond = Bond(atom1, atom2)
+                bond.length = float(bond_coeff_line.split()[2])
+                bond.bond_coefficient = float(bond_coeff_line.split()[1])
+                bonds.append(bond)
 
             print(f"Bonds read: {len(bonds)}")
         else:
@@ -777,9 +772,14 @@ class Network:
             local_network.masses = masses
         else:
             print("No masses data have been found")
-            if include_default_masses is True:
-                print("Assigning default mass of 1.0 to all atom types.")
-                masses = {atom_type: 1.0 for atom_type in range(1, n_atom_types + 1)}
+            if include_default_masses != 0:
+                print(
+                    f"Assigning default mass of {include_default_masses} to all atom types."
+                )
+                masses = {
+                    atom_type: include_default_masses
+                    for atom_type in range(1, n_atom_types + 1)
+                }
                 local_network.masses = masses
 
         return local_network
@@ -958,7 +958,8 @@ def make_surrounding(atoms: list[Atom], box: Box, dimensions: int = 2) -> list[A
     return list(surrounding_atoms)
 
 
-def make_bonds(atoms: list[Atom], box: Box, periodic=True) -> list:
+def make_bonds(atoms: list[Atom], box: Box, periodic: bool) -> list:
+    # first make all the bond inside the simulation box
     bonds = set()
     for atom_k in atoms:
         for atom_j in atoms:
@@ -966,25 +967,36 @@ def make_bonds(atoms: list[Atom], box: Box, periodic=True) -> list:
                 if atom_k.dist(atom_j) <= (
                     (atom_k.diameter / 2) + (atom_j.diameter / 2)
                 ):
-                    bonds.add(Bond(atom_k, atom_j, box))
+                    bonds.add(Bond(atom_k, atom_j))
                     atom_k.bonded.append(atom_j.atom_id)
                     atom_k.n_bonds += 1
 
     extra_bonds = set()
     if periodic:
-        edges = [atom for atom in atoms if atom.on_edge(box, 1.0)]
-        neighbors = make_surrounding(atoms, box)
-        edge_neighbors = [atom for atom in neighbors if atom.on_edge(box, 1.0)]
+        # # create a list of of all possible variants of atom 2
+        # # and see which one is the closest to the 1st atom.
+        # atom2_variants = make_surrounding([atom2], box)
+        # atom2_variants.append(atom2)
+        # min_dist = atom1.dist(atom2_variants[0])
+        # closest: Atom = atom2_variants[0]
+        # for variant in atom2_variants[1:]:
+        #     if atom1.dist(variant) < min_dist:
+        #         min_dist = atom1.dist(variant)
+        #         closest = variant
 
-        for main_atom in edges:
+        edge_atom = [atom for atom in atoms if atom.on_edge(box, 2.0)]
+        neighbours = make_surrounding(atoms, box)
+        edge_neighbors = [atom for atom in neighbours if atom.on_edge(box, 2.0)]
+
+        for main_atom in edge_atom:
             for outside_atom in edge_neighbors:
                 if main_atom.dist(outside_atom) <= (
                     (main_atom.diameter / 2) + outside_atom.diameter / 2
                 ):
-                    extra_bonds.add(Bond(main_atom, outside_atom, box))
+                    extra_bonds.add(Bond(main_atom, outside_atom))
                     main_atom.bonded.append(outside_atom.atom_id)
                     main_atom.n_bonds += 1
-    
+
     return list(bonds.union(extra_bonds))
 
 
