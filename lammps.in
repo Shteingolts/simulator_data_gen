@@ -4,7 +4,7 @@
 variable afrac  equal 1.00
 
 #number of particles in 20x20 area
-variable npart  equal ${afrac}*30
+variable npart  equal ${afrac}*40
 
 #temperature (in reduced units)
 #variable temp_start equal 2		#The temperature the simulation #starts in (high so samples are independent).

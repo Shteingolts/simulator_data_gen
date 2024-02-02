@@ -9,7 +9,7 @@ import network
 
 def run_lammps_calc(
     calculation_directory: str,
-    input_file: str = "lammps.in",
+    input_file: str = "la!mmps.in",
     mode: str = "single",
     num_threads: int = 1,
     num_procs: int = 6,
@@ -34,13 +34,21 @@ def construct_network(data_dir: str, outfile_name: str):
         path.join(data_dir, "coord.dat"),
         include_angles=False,
         include_dihedrals=False,
-        include_default_masses=100000,
+        include_default_masses=1000000000,
         periodic=True,
     )
     new_network.write_to_file(outfile_name)
 
 
 def gen_sim_data(custom_dir: str = "", networks: int = 5):
+    """
+    Parameters
+    ----------
+    custom_dir : str, optional
+        write data into a custom directory, by default ""
+    networks : int, optional
+        number of networks to make, by default 5
+    """
     # checks if user-provided directory is valid
     # if nothing is provided, default directory (script location)
     # is used
@@ -92,7 +100,7 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
         shutil.copy(path.abspath(path.join(target_dir, "network.lmp")), simulation_directory)
 
         # run compression simulation
-        run_lammps_calc(simulation_directory, input_file="in.deformation", mode="mpi")
+        run_lammps_calc(simulation_directory, input_file="in.deformation", mode="mpi", num_procs=4, num_threads=4)
 
     # input_files = [
     #     path.abspath(
@@ -103,4 +111,4 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
 
 
 if __name__ == "__main__":
-    gen_sim_data()
+    gen_sim_data(networks=10)
