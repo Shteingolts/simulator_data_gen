@@ -1,16 +1,13 @@
 import os
-import random
-import shutil
 import subprocess
-from os import path
 
 import network
-import lammps_scripts
+from lammps_scripts import CompressionSimulation, LJSimulation, TemperatureRange
 
 
 def run_lammps_calc(
     calculation_directory: str,
-    input_file: str = "la!mmps.in",
+    input_file: str = "lammps.in",
     mode: str = "single",
     num_threads: int = 1,
     num_procs: int = 6,
@@ -18,7 +15,7 @@ def run_lammps_calc(
     """
     A helper function which runs the external lammps code.
     """
-    input_file_path = path.join(calculation_directory, input_file)
+    input_file_path = os.path.join(calculation_directory, input_file)
     mpi_command = f"mpirun -np {num_procs} lmp -in {input_file_path}".split()
     command = f"lmp -in {input_file_path}".split()
 
@@ -30,12 +27,12 @@ def run_lammps_calc(
         subprocess.run(mpi_command, stdout=subprocess.DEVNULL)
 
 
-def construct_network(data_dir: str, outfile_name: str):
+def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1000000.0):
     new_network = network.Network.from_atoms(
-        path.join(data_dir, "coord.dat"),
+        os.path.join(data_dir, "coord.dat"),
         include_angles=False,
         include_dihedrals=False,
-        include_default_masses=1000000000,
+        include_default_masses=beads_mass,
         periodic=True,
     )
     new_network.write_to_file(outfile_name)
@@ -54,80 +51,47 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
     # if nothing is provided, default directory (script location)
     # is used
     if len(custom_dir) == 0:
-        calc_dir = path.dirname(path.realpath(__file__))
-    elif path.exists(custom_dir) and path.isdir(custom_dir):
+        calc_dir = os.path.dirname(os.path.realpath(__file__))
+    elif os.path.exists(custom_dir) and os.path.isdir(custom_dir):
         calc_dir == custom_dir
     else:
         print("Calculation directory is invalid. Using default directory")
-        calc_dir = path.dirname(path.realpath(__file__))
-    data_dir = path.join(calc_dir, "network_data")
+        calc_dir = os.path.dirname(os.path.realpath(__file__))
+    data_dir = os.path.join(calc_dir, "network_data")
 
     # Create a separate directory for each network
     for n in range(networks):
-        os.makedirs(path.join(data_dir, str(n + 1)))
+        os.makedirs(os.path.join(data_dir, str(n + 1)))
     dirs = os.listdir(data_dir)
     dirs.sort(key=lambda x: int(x))
+
     # Work with each network one by one
     for n, network_dir in enumerate(dirs):
-        target_dir = path.join(data_dir, network_dir)
-        print(target_dir)
-        print(os.listdir(target_dir))
-        # copy lammps calcultion files into each network directory
-        shutil.copy(path.join(calc_dir, "lammps.in"), path.abspath(target_dir))
-        # add random seed to lammps particle placement routine
-        with open(path.join(target_dir, "lammps.in"), "r", encoding="utf8") as f:
-            content = f.readlines()
-            for n, line in enumerate(content):
-                # For each network to be different, we need to put a random seed
-                # into the lammps input file in the `create atoms` command.
-                if "create_atoms" in line:
-                    line = line.split()
-                    line[4] = str(random.randint(1, 999999))
-                    line = " ".join(line) + "\n"
-                    content[n] = line
-        # save the new lammps input file
-        with open(path.join(target_dir, "lammps.in"), "w", encoding="utf8") as f:
-            f.writelines(content)
+        target_dir = os.path.join(data_dir, network_dir)
 
         # Run lammps calc to get coordinates and costruct a network
-        run_lammps_calc(target_dir, input_file="lammps.in")
-        construct_network(target_dir, "network.lmp")
+        lj_temp_range = TemperatureRange()
+        lj_simulation = LJSimulation(
+            temperature_range=lj_temp_range,
+            n_atoms=150,
+            n_atom_types=3,
+            atom_sizes=[1.2, 0.9, 0.6])
+        lj_simulation.write_to_file(target_dir)
+        run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
+        construct_network(target_dir, "network.lmp", beads_mass=1000000.0)
 
-        # Copy lammps compression simulation files and a network file
-        # into a subdirectory `sim` in the network directory
-        simulation_directory = path.abspath(path.join(target_dir, "sim"))
-        simulation_input_files = path.abspath(
-            path.join(calc_dir, "lammps_compression_files")
-        )
-        shutil.copytree(
-            simulation_input_files, simulation_directory, dirs_exist_ok=True
-        )
-        shutil.copy(
-            path.abspath(path.join(target_dir, "network.lmp")), simulation_directory
-        )
-
-        # run compression simulation
+        # Create deformation simulation and run it
+        compression_temp_range = TemperatureRange(0.01, 0.01, 10.0)
+        example_compression = CompressionSimulation(temperature_range=compression_temp_range)
+        example_compression.write_to_file(target_dir)
         run_lammps_calc(
-            simulation_directory,
+            target_dir,
             input_file="in.deformation",
             mode="mpi",
-            num_procs=4,
-            num_threads=4,
+            num_threads=2,
+            num_procs=2,
         )
-
-    # input_files = [
-    #     path.abspath(
-    #         path.join(data_dir, network_dir, "sim", "deform_dump.lammpstrj")
-    #     )
-    #     for network_dir in sorted(os.listdir(data_dir), key=lambda x: int(x))
-    # ]
 
 
 if __name__ == "__main__":
-    # TODO: a way to change the size of the networks
-    # TODO: change temperature and length of the initial LJ simulation
-    # TODO: change the strain and T of the compression simulation 
-    # gen_sim_data(networks=10)
-
-    example_simulation = lammps_scripts.LJ_sim()
-    example_simulation.write_to_file("example_script.in")
+    gen_sim_data(networks=5)
