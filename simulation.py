@@ -5,6 +5,7 @@ import subprocess
 from os import path
 
 import network
+import lammps_scripts
 
 
 def run_lammps_calc(
@@ -95,12 +96,24 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
         # Copy lammps compression simulation files and a network file
         # into a subdirectory `sim` in the network directory
         simulation_directory = path.abspath(path.join(target_dir, "sim"))
-        simulation_input_files = path.abspath(path.join(calc_dir, "lammps_compression_files"))
-        shutil.copytree(simulation_input_files, simulation_directory, dirs_exist_ok=True)
-        shutil.copy(path.abspath(path.join(target_dir, "network.lmp")), simulation_directory)
+        simulation_input_files = path.abspath(
+            path.join(calc_dir, "lammps_compression_files")
+        )
+        shutil.copytree(
+            simulation_input_files, simulation_directory, dirs_exist_ok=True
+        )
+        shutil.copy(
+            path.abspath(path.join(target_dir, "network.lmp")), simulation_directory
+        )
 
         # run compression simulation
-        run_lammps_calc(simulation_directory, input_file="in.deformation", mode="mpi", num_procs=4, num_threads=4)
+        run_lammps_calc(
+            simulation_directory,
+            input_file="in.deformation",
+            mode="mpi",
+            num_procs=4,
+            num_threads=4,
+        )
 
     # input_files = [
     #     path.abspath(
@@ -111,4 +124,10 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
 
 
 if __name__ == "__main__":
-    gen_sim_data(networks=10)
+    # TODO: a way to change the size of the networks
+    # TODO: change temperature and length of the initial LJ simulation
+    # TODO: change the strain and T of the compression simulation 
+    # gen_sim_data(networks=10)
+
+    example_simulation = lammps_scripts.LJ_sim()
+    example_simulation.write_to_file("example_script.in")

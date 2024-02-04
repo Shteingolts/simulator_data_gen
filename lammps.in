@@ -1,7 +1,7 @@
 #area fraction
 # 0.85 is in the liquid state at T=1
 # 0.90 is a crystalline solid)
-variable afrac  equal 1.00
+variable afrac equal 1.00
 
 #number of particles in 20x20 area
 variable npart  equal ${afrac}*40
@@ -9,8 +9,8 @@ variable npart  equal ${afrac}*40
 #temperature (in reduced units)
 #variable temp_start equal 2		#The temperature the simulation #starts in (high so samples are independent).
 #variable temp_end   equal 2	#The temparture the simulation ends in and #which is sampled.
- variable iter   equal 1
- variable Pres   equal 0.5
+variable iter   equal 1
+variable Pres   equal 0.5
 
 
 #we use the LJ potential epsilon as energy scale,
@@ -72,7 +72,7 @@ fix 10 all npt/sphere temp 0.025 0.001 6.0 iso 0.1 0.1 0.6 disc
 
 
 #output time step, temperature, average kinetic and potential energy
-thermo_style custom step temp  ke pe
+thermo_style custom step temp ke pe
 thermo		100
 dump            1 all atom 10 traj.lmpstrj.${iter}
 
