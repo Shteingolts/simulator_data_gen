@@ -1,5 +1,6 @@
 import os
 import subprocess
+from time import perf_counter
 
 import network
 from lammps_scripts import CompressionSimulation, LJSimulation, TemperatureRange
@@ -48,12 +49,11 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
         number of networks to make, by default 5
     """
     # checks if user-provided directory is valid
-    # if nothing is provided, default directory (script location)
-    # is used
+    # if nothing is provided, script directory is used
     if len(custom_dir) == 0:
         calc_dir = os.path.dirname(os.path.realpath(__file__))
     elif os.path.exists(custom_dir) and os.path.isdir(custom_dir):
-        calc_dir == custom_dir
+        calc_dir = custom_dir
     else:
         print("Calculation directory is invalid. Using default directory")
         calc_dir = os.path.dirname(os.path.realpath(__file__))
@@ -70,19 +70,27 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
         target_dir = os.path.join(data_dir, network_dir)
 
         # Run lammps calc to get coordinates and costruct a network
-        lj_temp_range = TemperatureRange()
         lj_simulation = LJSimulation(
-            temperature_range=lj_temp_range,
-            n_atoms=150,
-            n_atom_types=3,
-            atom_sizes=[1.2, 0.9, 0.6])
+            n_atoms=300,
+            n_atom_types=6,
+            atom_sizes=[2, 1.8, 1.6, 1.4, 1.2, 1.0],
+            box_dim=[-10.0, 10.0, -10.0, 10.0, -0.1, 0.1],
+            temperature_range=TemperatureRange(T_start=0.001, T_end=0.001, bias=10.0),
+            n_steps=50000
+            )
         lj_simulation.write_to_file(target_dir)
+        t_start = perf_counter()
         run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
-        construct_network(target_dir, "network.lmp", beads_mass=1000000.0)
+        construct_network(target_dir, "network.lmp", beads_mass=1000000.0) # carefull with beads mass, too low and everything breaks
 
         # Create deformation simulation and run it
-        compression_temp_range = TemperatureRange(0.01, 0.01, 10.0)
-        example_compression = CompressionSimulation(temperature_range=compression_temp_range)
+        example_compression = CompressionSimulation(
+            network_filename="network.lmp", # don't change
+            strain=0.02, # % of box X dimension
+            strain_rate=1e-5, # speed of compression
+            temperature_range=TemperatureRange(0.01, 0.01, 10.0),
+            dump_frequency=None # None if you want 2000 steps or put a value to dump every N steps
+            )
         example_compression.write_to_file(target_dir)
         run_lammps_calc(
             target_dir,
@@ -91,6 +99,8 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
             num_threads=2,
             num_procs=2,
         )
+        t_stop = perf_counter()
+        print(f"{target_dir} - {round(t_stop-t_start, 2)} s.")
 
 
 if __name__ == "__main__":

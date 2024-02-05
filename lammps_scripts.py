@@ -19,7 +19,7 @@ class LJSimulation:
     n_atoms: int
     n_atom_types: int
     atom_sizes: list[float]
-    box_dim: list[int]
+    box_dim: list[float]
     temperature_range: TemperatureRange = TemperatureRange()
     n_steps: int
 
@@ -28,7 +28,7 @@ class LJSimulation:
         n_atoms: int = 200,
         n_atom_types: int = 4,
         atom_sizes: list[float] = [1.6, 1.4, 1.2, 1.0],
-        box_dim: list[int] = [-7.0, 7.0, -7.0, 7.0, -0.1, 0.1],
+        box_dim: list[float] = [-7.0, 7.0, -7.0, 7.0, -0.1, 0.1],
         temperature_range: TemperatureRange = TemperatureRange(),
         n_steps: int = 30000,
     ):
@@ -75,7 +75,7 @@ neigh_modify every 1 delay 0 check yes
 
 # create 2D box
 region box block {self.box_dim[0]} {self.box_dim[1]} {self.box_dim[2]} {self.box_dim[3]} {self.box_dim[4]} {self.box_dim[5]}
-create_box 4 box
+create_box {self.n_atom_types} box
 
 
 # put z=0 all the time
