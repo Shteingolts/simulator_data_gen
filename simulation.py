@@ -40,7 +40,10 @@ def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1000
 
 
 def gen_sim_data(custom_dir: str = "", networks: int = 5):
-    """
+    """Change simulation parameters (`LJSimulation` and `CompressionSimulation` class attributes)
+    to control how networks are generated and compressed.
+    Note: not all parameters you out in will work, experiment.
+
     Parameters
     ----------
     custom_dir : str, optional

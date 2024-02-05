@@ -3,6 +3,8 @@ import random
 
 
 class TemperatureRange:
+    """Simple data class to store temperature range information.
+    """
     T_start: float
     T_end: float
     bias: float
@@ -16,6 +18,15 @@ class TemperatureRange:
 
 
 class LJSimulation:
+    """Defines the initial lammps calculation which is used to generate a disordered network.
+    Default values work 100%, anything you change may not. The length of `atom_sizes` array
+    needs to be equal to `n_atom_types` (yes, the latter attribute is useless, i know).
+
+    Raises
+    ------
+    IOError
+        Raises an error if `len(atom_sizes) != n_atom_sizes`
+    """
     n_atoms: int
     n_atom_types: int
     atom_sizes: list[float]
@@ -133,6 +144,8 @@ write_data coord.dat
 
 
 class CompressionSimulation:
+    """Defines the compression simulation which is used to generate data for GNN simulator.
+    """
     network_filename: str
     strain: float
     strain_rate: float
