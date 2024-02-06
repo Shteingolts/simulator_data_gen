@@ -10,7 +10,7 @@ The `GNN Simulator Data Generator`, as the name suggests, automates the generati
 ## Installation
 1. Clone this repository:
    ```sh
-   git clone https://github.com/Shteingolts/simulator_data_gen/tree/main
+   git clone https://github.com/Shteingolts/simulator_data_gen
 2. Navigate to the cloned directory:
     ```sh
     cd simulator_data_generator
