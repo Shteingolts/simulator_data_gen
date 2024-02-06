@@ -42,7 +42,7 @@ def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1000
 def gen_sim_data(custom_dir: str = "", networks: int = 5):
     """Change simulation parameters (`LJSimulation` and `CompressionSimulation` class attributes)
     to control how networks are generated and compressed.
-    Note: not all parameters you out in will work, experiment.
+    Note: do not expect any combination of parameters to work!
 
     Parameters
     ----------
@@ -73,25 +73,25 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
         target_dir = os.path.join(data_dir, network_dir)
 
         # Run lammps calc to get coordinates and costruct a network
-        lj_simulation = LJSimulation(
-            n_atoms=300,
-            n_atom_types=6,
-            atom_sizes=[2, 1.8, 1.6, 1.4, 1.2, 1.0],
-            box_dim=[-10.0, 10.0, -10.0, 10.0, -0.1, 0.1],
-            temperature_range=TemperatureRange(T_start=0.001, T_end=0.001, bias=10.0),
-            n_steps=50000
+        lj_simulation = LJSimulation( # do not change
+            n_atoms=200,
+            n_atom_types=4,
+            atom_sizes=[1.6, 1.4, 1.2, 1.0],
+            box_dim=[-7.0, 7.0, -7.0, 7.0, -0.1, 0.1],
+            temperature_range=TemperatureRange(T_start=0.025, T_end=0.001, bias=10.0),
+            n_steps=30000
             )
         lj_simulation.write_to_file(target_dir)
         t_start = perf_counter()
         run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
-        construct_network(target_dir, "network.lmp", beads_mass=1000000.0) # carefull with beads mass, too low and everything breaks
+        construct_network(target_dir, "network.lmp", beads_mass=100000.0) # carefull with beads mass, too low and everything breaks
 
         # Create deformation simulation and run it
         example_compression = CompressionSimulation(
             network_filename="network.lmp", # don't change
-            strain=0.02, # % of box X dimension
+            strain=0.025, # % of box X dimension
             strain_rate=1e-5, # speed of compression
-            temperature_range=TemperatureRange(0.01, 0.01, 10.0),
+            temperature_range=TemperatureRange(0.0000001, 0.0000001, 10.0), #TODO for Max: Try different values
             dump_frequency=None # None if you want 2000 steps or put a value to dump every N steps
             )
         example_compression.write_to_file(target_dir)
