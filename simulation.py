@@ -28,7 +28,7 @@ def run_lammps_calc(
         subprocess.run(mpi_command, stdout=subprocess.DEVNULL)
 
 
-def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1000000.0):
+def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1e6):
     new_network = network.Network.from_atoms(
         os.path.join(data_dir, "coord.dat"),
         include_angles=False,
@@ -39,7 +39,12 @@ def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1000
     new_network.write_to_file(outfile_name)
 
 
-def gen_sim_data(custom_dir: str = "", networks: int = 5):
+def gen_sim_data(
+    custom_dir: str = "",
+    lj_sim: LJSimulation = LJSimulation(),
+    comp_sim: CompressionSimulation = CompressionSimulation(),
+    n_networks: int = 5,
+):
     """Change simulation parameters (`LJSimulation` and `CompressionSimulation` class attributes)
     to control how networks are generated and compressed.
     Note: do not expect any combination of parameters to work!
@@ -48,9 +53,14 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
     ----------
     custom_dir : str, optional
         write data into a custom directory, by default ""
-    networks : int, optional
+    lj_sim: LJSimulation
+        configuration for LJ simulation, working defaults
+    comp_sim: CompressionSimulation
+        configuration for compression simulation, working defaults
+    n_networks : int, optional
         number of networks to make, by default 5
     """
+
     # checks if user-provided directory is valid
     # if nothing is provided, script directory is used
     if len(custom_dir) == 0:
@@ -63,7 +73,7 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
     data_dir = os.path.join(calc_dir, "network_data")
 
     # Create a separate directory for each network
-    for n in range(networks):
+    for n in range(n_networks):
         os.makedirs(os.path.join(data_dir, str(n + 1)))
     dirs = os.listdir(data_dir)
     dirs.sort(key=lambda x: int(x))
@@ -71,30 +81,13 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
     # Work with each network one by one
     for n, network_dir in enumerate(dirs):
         target_dir = os.path.join(data_dir, network_dir)
-
-        # Run lammps calc to get coordinates and costruct a network
-        lj_simulation = LJSimulation( # do not change
-            n_atoms=200,
-            n_atom_types=4,
-            atom_sizes=[1.6, 1.4, 1.2, 1.0],
-            box_dim=[-7.0, 7.0, -7.0, 7.0, -0.1, 0.1],
-            temperature_range=TemperatureRange(T_start=0.025, T_end=0.001, bias=10.0),
-            n_steps=30000
-            )
-        lj_simulation.write_to_file(target_dir)
         t_start = perf_counter()
-        run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
-        construct_network(target_dir, "network.lmp", beads_mass=100000.0) # carefull with beads mass, too low and everything breaks
 
-        # Create deformation simulation and run it
-        example_compression = CompressionSimulation(
-            network_filename="network.lmp", # don't change
-            strain=0.025, # % of box X dimension
-            strain_rate=1e-5, # speed of compression
-            temperature_range=TemperatureRange(0.0000001, 0.0000001, 10.0), #TODO for Max: Try different values
-            dump_frequency=None # None if you want 2000 steps or put a value to dump every N steps
-            )
-        example_compression.write_to_file(target_dir)
+        lj_sim.write_to_file(target_dir)
+        run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
+        # carefull with beads mass, too low and everything breaks
+        construct_network(target_dir, "network.lmp", beads_mass=100000.0)
+        comp_sim.write_to_file(target_dir)
         run_lammps_calc(
             target_dir,
             input_file="in.deformation",
@@ -102,9 +95,26 @@ def gen_sim_data(custom_dir: str = "", networks: int = 5):
             num_threads=2,
             num_procs=2,
         )
+
         t_stop = perf_counter()
         print(f"{target_dir} - {round(t_stop-t_start, 2)} s.")
 
 
 if __name__ == "__main__":
-    gen_sim_data(networks=5)
+    lj_sim = LJSimulation(
+        n_atoms=200,
+        n_atom_types=4,
+        atom_sizes=[1.6, 1.4, 1.2, 1.0],
+        box_dim=[-7.0, 7.0, -7.0, 7.0, -0.1, 0.1],
+        temperature_range=TemperatureRange(T_start=0.025, T_end=0.001, bias=10.0),
+        n_steps=30000,
+    )
+    comp_sim = CompressionSimulation(
+        network_filename="network.lmp",  # do not change!
+        strain=0.025,  # % of box X dimension
+        strain_rate=1e-5,  # speed of compression
+        temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
+        dump_frequency=None,  # `None` if you want 2000 steps or put a value to dump every N steps
+    )
+
+    gen_sim_data(custom_dir="", lj_sim=lj_sim, comp_sim=comp_sim, n_networks=5)
