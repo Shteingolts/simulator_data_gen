@@ -3,8 +3,8 @@ import random
 
 
 class TemperatureRange:
-    """Simple data class to store temperature range information.
-    """
+    """Simple data class to store temperature range information."""
+
     T_start: float
     T_end: float
     bias: float
@@ -15,6 +15,9 @@ class TemperatureRange:
         self.T_start = T_start
         self.T_end = T_end
         self.bias = bias
+
+    def __repr__(self) -> str:
+        return f"TempRange: start={self.T_start}, stop={self.T_end}, bias={self.bias}"
 
 
 class LJSimulation:
@@ -27,6 +30,7 @@ class LJSimulation:
     IOError
         Raises an error if `len(atom_sizes) != n_atom_sizes`
     """
+
     n_atoms: int
     n_atom_types: int
     atom_sizes: list[float]
@@ -144,8 +148,8 @@ write_data coord.dat
 
 
 class CompressionSimulation:
-    """Defines the compression simulation which is used to generate data for GNN simulator.
-    """
+    """Defines the compression simulation which is used to generate data for GNN simulator."""
+
     network_filename: str
     strain: float
     strain_rate: float
@@ -158,13 +162,15 @@ class CompressionSimulation:
         strain: float = 0.05,
         strain_rate: float = 1e-5,
         temperature_range: TemperatureRange = TemperatureRange(),
-        dump_frequency: int | None = None
+        dump_frequency: int | None = None,
     ) -> None:
         self.network_filename = network_filename
         self.strain = strain
         self.strain_rate = strain_rate
         self.temperature_range = temperature_range
-        self.dump_frequency = int(strain/strain_rate*100/2000) if dump_frequency is None else 1000
+        self.dump_frequency = (
+            int(strain / strain_rate * 100 / 2000) if dump_frequency is None else 1000
+        )
 
     def write_to_file(self, directory: str | None = None):
         deformation_script_template: str = f"""

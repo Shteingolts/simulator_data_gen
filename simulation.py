@@ -85,6 +85,7 @@ def gen_sim_data(
 
         lj_sim.write_to_file(target_dir)
         run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
+        
         # carefull with beads mass, too low and everything breaks
         construct_network(target_dir, "network.lmp", beads_mass=100000.0)
         comp_sim.write_to_file(target_dir)
@@ -106,15 +107,15 @@ if __name__ == "__main__":
         n_atom_types=4,
         atom_sizes=[1.6, 1.4, 1.2, 1.0],
         box_dim=[-7.0, 7.0, -7.0, 7.0, -0.1, 0.1],
-        temperature_range=TemperatureRange(T_start=0.025, T_end=0.001, bias=10.0),
+        temperature_range=TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0),
         n_steps=30000,
     )
     comp_sim = CompressionSimulation(
         network_filename="network.lmp",  # do not change!
-        strain=0.025,  # % of box X dimension
+        strain=0.080,  # % of box X dimension
         strain_rate=1e-5,  # speed of compression
         temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
         dump_frequency=None,  # `None` if you want 2000 steps or put a value to dump every N steps
     )
 
-    gen_sim_data(custom_dir="", lj_sim=lj_sim, comp_sim=comp_sim, n_networks=5)
+    gen_sim_data(custom_dir="", lj_sim=lj_sim, comp_sim=comp_sim, n_networks=60)
