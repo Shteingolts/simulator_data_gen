@@ -1,5 +1,13 @@
+data_pt
+/dataset_0.1
+dataset.tar
+dataset_0.1.tar.gz
+/dataset_0.2
+/dataset_bimodal
 /network_data_2.5
 /network_data_8.0
 /network_rand
-variable_data.pt
+/test_bondcoeff
 __pycache__
+data_bimodal_coord.pt
+test

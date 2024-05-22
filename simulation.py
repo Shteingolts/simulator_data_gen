@@ -1,6 +1,7 @@
 import os
 import subprocess
 from time import perf_counter
+from typing import Callable
 
 import network
 from lammps_scripts import CompressionSimulation, LJSimulation, TemperatureRange
@@ -88,6 +89,7 @@ def gen_sim_data(
         
         # carefull with beads mass, too low and everything breaks
         construct_network(target_dir, "network.lmp", beads_mass=100000.0)
+
         comp_sim.write_to_file(target_dir)
         run_lammps_calc(
             target_dir,
