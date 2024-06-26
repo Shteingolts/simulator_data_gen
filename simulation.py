@@ -38,6 +38,7 @@ def construct_network(data_dir: str, outfile_name: str, beads_mass: float = 1e6)
         periodic=True,
     )
     new_network.write_to_file(outfile_name)
+    return new_network
 
 
 def gen_sim_data(
@@ -88,7 +89,9 @@ def gen_sim_data(
         run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
         
         # carefull with beads mass, too low and everything breaks
-        construct_network(target_dir, "network.lmp", beads_mass=100000.0)
+        new_network = construct_network(target_dir, "network.lmp", beads_mass=100000.0)
+
+        comp_sim._recalc_dump_freq(new_network.box.x)
 
         comp_sim.write_to_file(target_dir)
         run_lammps_calc(

@@ -151,7 +151,8 @@ def do_work(n_atoms: int):
 
         new_network.write_to_file("network.lmp")
 
-        # Write lammps input file and run compression simulation  
+        # Write lammps input file and run compression simulation
+        comp_sim._recalc_dump_freq(new_network.box.x)  
         comp_sim.write_to_file(target_dir)
         run_lammps_calc(
             target_dir,
@@ -163,14 +164,7 @@ def do_work(n_atoms: int):
 
         original_trajectory = parse_dump(os.path.join(target_dir, "dump.lammpstrj"), new_network, node_features="coord", skip=5)
 
-        # calculate origial -dy/dx
-        original_p = calc_p_ratio(target_dir)
 
-        # optimize the network
-        graph = assemble_data(new_network.atoms, new_network.bonds, new_network.box, node_features="coord")
-        optimized_graph = optimizer.perturb(graph)
-        optimized_network = network_from_data(optimized_graph)
-        optimized_network.write_to_file("network.lmp")
 
         # run lammps again
         comp_sim.write_to_file(target_dir)
