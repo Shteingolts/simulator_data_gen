@@ -11,3 +11,12 @@ dataset_0.1.tar.gz
 __pycache__
 data_bimodal_coord.pt
 test
+for_box
+for_box_big
+constant_step_bimodal_ang_coeffs
+nonperiodic_bimodal
+periodic_large
+sanity_check
+test_box
+constant_step_bimodal
+constant_step
