@@ -4,7 +4,7 @@ import torch
 import network
 import convert
 
-abs_path = "/home/sergey/python/simulator_data_gen/periodic_large"
+abs_path = "/home/sergey/python/simulator_data_gen/nonperiodic_bimodal_3"
 data = []
 for t in os.listdir(abs_path):
     current_dir = os.path.join(abs_path, t, "network_data")
@@ -20,7 +20,8 @@ for t in os.listdir(abs_path):
         sim = convert.parse_dump(
             os.path.join(local_dir, "dump.lammpstrj"),
             current_network,
-            node_features="coord"
+            node_features="coord",
+            skip=1
             )
         data.append(sim)
 
@@ -33,4 +34,4 @@ for t in os.listdir(abs_path):
 #     sim = convert.parse_dump(os.path.join(local_dir, "dump.lammpstrj"), current_network, node_features="coord")
 #     data.append(sim)
 
-torch.save(data, "data_periodic_large.pt")
+torch.save(data, "data_nonperiodic.pt")

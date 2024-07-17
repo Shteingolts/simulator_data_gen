@@ -1,7 +1,6 @@
 import os
 import subprocess
 from time import perf_counter
-from typing import Callable
 
 import network
 from lammps_scripts import CompressionSimulation, LJSimulation, TemperatureRange

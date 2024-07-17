@@ -106,10 +106,10 @@ def prune_bimodal(network: Network) -> Network:
     return network
 
 
-calculation_directory = os.path.join(os.getcwd(), "periodic_large")
+calculation_directory = os.path.join(os.getcwd(), "nonperiodic_bimodal_3")
 print(f"Main dir: {calculation_directory}")
 
-n_atoms = np.linspace(500, 1000, 6, dtype=int)
+n_atoms = np.linspace(140, 240, 11, dtype=int)
 print(f"N atoms:    {n_atoms}")
 atom_types = np.linspace(3, 4, 4, dtype=int)
 print(f"Atom types: {atom_types}")
@@ -121,7 +121,7 @@ temperature_range = TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0)
 print(f"Temp range: {temperature_range}")
 n_steps = 30000
 print(f"N steps:    {n_steps}")
-batch_size = 1  # number of random networks with the same configuration
+batch_size = 5  # number of random networks with the same configuration
 total_networks = len(n_atoms) * len(atom_types) * batch_size
 print(f"N networks: {total_networks}")
 
@@ -168,8 +168,8 @@ def do_work(n_atoms: int):
         # Carefull with beads mass, too low and everything breaks
         new_network = Network.from_atoms(
             os.path.join(target_dir, "coord.dat"),
-            periodic=True,
-            include_default_masses=1e6, # arbitrary mass for interesting compression
+            periodic=False,
+            include_default_masses=5e8, # arbitrary mass for interesting compression
             include_angles=True,
             include_dihedrals=False
         )
