@@ -4,7 +4,8 @@ import torch
 import network
 import convert
 
-abs_path = "/home/sergey/python/simulator_data_gen/nonperiodic_bimodal_3"
+abs_path = "/home/sergey/python/simulator_data_gen/data/raw\
+/data_big_pruned"
 data = []
 for t in os.listdir(abs_path):
     current_dir = os.path.join(abs_path, t, "network_data")
@@ -34,4 +35,4 @@ for t in os.listdir(abs_path):
 #     sim = convert.parse_dump(os.path.join(local_dir, "dump.lammpstrj"), current_network, node_features="coord")
 #     data.append(sim)
 
-torch.save(data, "data_nonperiodic.pt")
+torch.save(data, "data/binary/data_xy_randpruning_noangles_m1e6.pt")

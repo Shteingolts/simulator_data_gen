@@ -106,7 +106,7 @@ def prune_bimodal(network: Network) -> Network:
     return network
 
 
-calculation_directory = os.path.join(os.getcwd(), "nonperiodic_bimodal_3")
+calculation_directory = os.path.join(os.getcwd(), "data_vanilla_nopruning_mass5e8_ang0.01")
 print(f"Main dir: {calculation_directory}")
 
 n_atoms = np.linspace(140, 240, 11, dtype=int)
@@ -156,6 +156,7 @@ def do_work(n_atoms: int):
     dirs.sort(key=lambda x: int(x))
 
     # Work with each network one by one
+    previous_direction = 1
     for network_dir in dirs:
         print(f"Network dir: {network_dir}")
         target_dir = os.path.join(data_dir, network_dir)
@@ -168,14 +169,14 @@ def do_work(n_atoms: int):
         # Carefull with beads mass, too low and everything breaks
         new_network = Network.from_atoms(
             os.path.join(target_dir, "coord.dat"),
-            periodic=False,
+            periodic=True,
             include_default_masses=5e8, # arbitrary mass for interesting compression
             include_angles=True,
             include_dihedrals=False
         )
 
         # Apply pruning based on bimodal distribution
-        new_network = prune_bimodal(new_network)
+        # new_network = prune_bimodal(new_network)
 
         # Set angle coeffs to 0.01 for all angles
         new_network.set_angle_coeff(0.01)
@@ -184,6 +185,17 @@ def do_work(n_atoms: int):
         new_network.write_to_file(os.path.join(target_dir, "network.lmp"))
 
         # Run compression simulation
+        # current_direction = 0 if previous_direction == 1 else 1
+        # comp_sim = CompressionSimulation(
+        #     network_filename="network.lmp",  # do not change!
+        #     strain=0.03,  # % of box X dimension
+        #     strain_rate=1e-5,  # speed of compression
+        #     strain_direction='x' if current_direction == 0 else 'y',
+        #     desired_step_size=0.001,
+        #     temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
+        # )
+        # previous_direction = current_direction
+        # print(f"Current strain on axis {'x' if current_direction == 0 else 'y'}")
         comp_sim._recalc_dump_freq(new_network.box.x)
         comp_sim.write_to_file(target_dir)
         run_lammps_calc(
