@@ -1,5 +1,7 @@
 """The same as `random_tries.ipynb`, but runnable from terminal.
 """
+import argparse
+import logging
 import os
 import random
 from multiprocessing import Pool
@@ -106,27 +108,122 @@ def prune_bimodal(network: Network) -> Network:
     return network
 
 
-calculation_directory = os.path.join(os.getcwd(), "data_vanilla_nopruning_mass5e8_ang0.01")
-print(f"Main dir: {calculation_directory}")
+# calculation_directory = os.path.join(os.getcwd(), "data_vanilla_nopruning_mass5e8_ang0.01")
+# print(f"Main dir: {calculation_directory}")
 
-n_atoms = np.linspace(140, 240, 11, dtype=int)
-print(f"N atoms:    {n_atoms}")
-atom_types = np.linspace(3, 4, 4, dtype=int)
-print(f"Atom types: {atom_types}")
-atom_sizes = np.linspace(1.2, 1.8, 4, dtype=float)
-print(f"Atom sizes: {atom_sizes}")
-box_dim = [-40.0, 40.0, -40.0, 40.0, -0.1, 0.1]
-print(f"Box size:   {box_dim}")
-temperature_range = TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0)
-print(f"Temp range: {temperature_range}")
-n_steps = 30000
-print(f"N steps:    {n_steps}")
-batch_size = 5  # number of random networks with the same configuration
-total_networks = len(n_atoms) * len(atom_types) * batch_size
-print(f"N networks: {total_networks}")
+# n_atoms = np.linspace(140, 240, 11, dtype=int)
+# print(f"N atoms:    {n_atoms}")
+# atom_types = np.linspace(3, 4, 4, dtype=int)
+# # print(f"Atom types: {atom_types}")
+# atom_sizes = np.linspace(1.2, 1.8, 4, dtype=float)
+# # print(f"Atom sizes: {atom_sizes}")
+# box_dim = [-40.0, 40.0, -40.0, 40.0, -0.1, 0.1]
+# # print(f"Box size:   {box_dim}")
+# temperature_range = TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0)
+# # print(f"Temp range: {temperature_range}")
+# n_steps = 30000
+# print(f"N steps:    {n_steps}")
+# batch_size = 5  # number of random networks with the same configuration
+# total_sims = len(n_atoms) * len(atom_types) * batch_size
+# print(f"N networks: {total_sims}")
 
 
-def do_work(n_atoms: int):
+# def do_work(n_atoms: int, xy: bool = True):
+#     lj_sim = LJSimulation(
+#         n_atoms=n_atoms,
+#         n_atom_types=4,
+#         atom_sizes=atom_sizes,
+#         box_dim=box_dim,
+#         temperature_range=temperature_range,
+#         n_steps=n_steps,
+#     )
+#     comp_sim = CompressionSimulation(
+#         network_filename="network.lmp",  # do not change!
+#         strain=0.03,  # % of box X dimension
+#         strain_rate=1e-5,  # speed of compression
+#         desired_step_size=0.001,
+#         temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
+#     )
+#     custom_dir = os.path.join(calculation_directory, f"{n_atoms}_{4}")
+#     os.makedirs(custom_dir)
+    
+#     assert(os.path.exists(custom_dir) and os.path.isdir(custom_dir))
+#     data_dir = os.path.join(custom_dir, "network_data")
+#     print(f"Data dir: {data_dir}")
+
+#     # Create a separate directory for each network
+#     for b in range(batch_size):
+#         os.makedirs(os.path.join(data_dir, str(b + 1)))
+#     dirs = os.listdir(data_dir)
+#     dirs.sort(key=lambda x: int(x))
+
+#     # Work with each network one by one
+#     previous_direction = 1
+#     for network_dir in dirs:
+#         print(f"Network dir: {network_dir}")
+#         target_dir = os.path.join(data_dir, network_dir)
+#         print(f"Target dir: {target_dir}")
+
+#         lj_sim.write_to_file(target_dir)
+#         run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
+        
+#         # Create a network from LJ coords. 
+#         # Carefull with beads mass, too low and everything breaks
+#         new_network = Network.from_atoms(
+#             os.path.join(target_dir, "coord.dat"),
+#             periodic=True,
+#             include_default_masses=5e8, # arbitrary mass for interesting compression
+#             include_angles=True,
+#             include_dihedrals=False
+#         )
+
+#         # Apply pruning based on bimodal distribution
+#         # new_network = prune_bimodal(new_network)
+
+#         # Set angle coeffs to 0.01 for all angles
+#         new_network.set_angle_coeff(0.01)
+
+#         # Save the network into a file
+#         new_network.write_to_file(os.path.join(target_dir, "network.lmp"))
+
+#         # Run compression simulation
+#         if xy:
+#             current_direction = 0 if previous_direction == 1 else 1
+#             comp_sim = CompressionSimulation(
+#                 network_filename="network.lmp",  # do not change!
+#                 strain=0.03,  # % of box X dimension
+#                 strain_rate=1e-5,  # speed of compression
+#                 strain_direction='x' if current_direction == 0 else 'y',
+#                 desired_step_size=0.001,
+#                 temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
+#             )
+#             previous_direction = current_direction
+
+#         comp_sim._recalc_dump_freq(new_network.box.x)
+#         comp_sim.write_to_file(target_dir)
+#         run_lammps_calc(
+#             target_dir,
+#             input_file="in.deformation",
+#             mode="single",
+#             num_threads=1,
+#             num_procs=1,
+#         )
+
+
+def run_one_calc(
+        local_calc_dir: str,
+        n_atoms: int,
+        masses: int,
+        angle_coeff: float,
+        pruning: str,
+        pruning_parameters: str,
+        strain_direction: str = 'x',
+
+    ):
+    os.makedirs(local_calc_dir)
+    assert(os.path.exists(local_calc_dir) and os.path.isdir(local_calc_dir))
+    print(local_calc_dir)
+
     lj_sim = LJSimulation(
         n_atoms=n_atoms,
         n_atom_types=4,
@@ -135,77 +232,229 @@ def do_work(n_atoms: int):
         temperature_range=temperature_range,
         n_steps=n_steps,
     )
+
+    # LJ sim
+    lj_sim.write_to_file(local_calc_dir)
+    run_lammps_calc(local_calc_dir, input_file="lammps.in", mode="single")
+        
+    # Create a network from LJ coords. 
+    new_network = Network.from_atoms(
+        os.path.join(local_calc_dir, "coord.dat"),
+        periodic=True,
+        include_default_masses=masses, # arbitrary mass for interesting compression
+        include_angles=True,
+        include_dihedrals=False
+    )
+
+    # Apply pruning based on bimodal distribution
+    match pruning:
+        case 'no':
+            pass
+        case 'random':
+            try:
+                start, end = map(int, pruning_parameters.split('-'))
+            except Exception:
+                raise TypeError("Could not parse your prunings parameters (-pp) into two ints. Try 'n-m'.")
+            assert(isinstance(start, int))
+            assert(isinstance(end, int))
+            # print(start, end)
+            new_network = prune_edges(new_network, random.randint(start, end)/100)
+        case _:
+            raise NotImplementedError("choice of pruning is not implemented yet")
+
+    # Set angle coeffs for all angles
+    new_network.set_angle_coeff(angle_coeff)
+
+    # Save the network into a file
+    new_network.write_to_file(os.path.join(local_calc_dir, "network.lmp"))
+
+    # Run compression simulation
     comp_sim = CompressionSimulation(
         network_filename="network.lmp",  # do not change!
         strain=0.03,  # % of box X dimension
         strain_rate=1e-5,  # speed of compression
+        strain_direction=strain_direction,
         desired_step_size=0.001,
         temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
     )
-    custom_dir = os.path.join(calculation_directory, f"{n_atoms}_{4}")
-    os.makedirs(custom_dir)
-    
-    assert(os.path.exists(custom_dir) and os.path.isdir(custom_dir))
-    data_dir = os.path.join(custom_dir, "network_data")
-    print(f"Data dir: {data_dir}")
 
-    # Create a separate directory for each network
-    for b in range(batch_size):
-        os.makedirs(os.path.join(data_dir, str(b + 1)))
-    dirs = os.listdir(data_dir)
-    dirs.sort(key=lambda x: int(x))
+    comp_sim._recalc_dump_freq(new_network.box.x)
+    comp_sim.write_to_file(local_calc_dir)
+    run_lammps_calc(
+        local_calc_dir,
+        input_file="in.deformation",
+        mode="single",
+        num_threads=1,
+        num_procs=1,
+    )
 
-    # Work with each network one by one
-    previous_direction = 1
-    for network_dir in dirs:
-        print(f"Network dir: {network_dir}")
-        target_dir = os.path.join(data_dir, network_dir)
-        print(f"Target dir: {target_dir}")
-
-        lj_sim.write_to_file(target_dir)
-        run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
-        
-        # Create a network from LJ coords. 
-        # Carefull with beads mass, too low and everything breaks
-        new_network = Network.from_atoms(
-            os.path.join(target_dir, "coord.dat"),
-            periodic=True,
-            include_default_masses=5e8, # arbitrary mass for interesting compression
-            include_angles=True,
-            include_dihedrals=False
-        )
-
-        # Apply pruning based on bimodal distribution
-        # new_network = prune_bimodal(new_network)
-
-        # Set angle coeffs to 0.01 for all angles
-        new_network.set_angle_coeff(0.01)
-
-        # Save the network into a file
-        new_network.write_to_file(os.path.join(target_dir, "network.lmp"))
-
-        # Run compression simulation
-        # current_direction = 0 if previous_direction == 1 else 1
-        # comp_sim = CompressionSimulation(
-        #     network_filename="network.lmp",  # do not change!
-        #     strain=0.03,  # % of box X dimension
-        #     strain_rate=1e-5,  # speed of compression
-        #     strain_direction='x' if current_direction == 0 else 'y',
-        #     desired_step_size=0.001,
-        #     temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
-        # )
-        # previous_direction = current_direction
-        # print(f"Current strain on axis {'x' if current_direction == 0 else 'y'}")
-        comp_sim._recalc_dump_freq(new_network.box.x)
-        comp_sim.write_to_file(target_dir)
-        run_lammps_calc(
-            target_dir,
-            input_file="in.deformation",
-            mode="single",
-            num_threads=1,
-            num_procs=1,
-        )
 
 if __name__ == "__main__":
-    with Pool(10) as p:
-        p.map(do_work, n_atoms)
+    parser = argparse.ArgumentParser(description="generate data")
+    parser.add_argument(
+        "-min",
+        "--min_size",
+        type=int,
+        default=200,
+        help="min network size. Default is 200."
+    )
+    parser.add_argument(
+        "-max",
+        "--max_size",
+        type=int,
+        default=400,
+        help="max network size. Default is 400."
+    )
+    parser.add_argument(
+        "--n_sizes",
+        type=int,
+        default=11,
+        help="number of network sizes in the given range. Default is 11."
+    )
+    parser.add_argument(
+        "-batch",
+        "--batch_size",
+        type=int,
+        default=10,
+        help="number of networks of a given size. Default is 10."
+    )
+    parser.add_argument(
+        "-s",
+        "--strain",
+        type=float,
+        default=0.03,
+        help="compression strain. Default is 0.03."
+    )
+    parser.add_argument(
+        "-sr",
+        "--strain_rate",
+        type=float,
+        default=1e-5,
+        help="LAMMPS strain rate. Default is 1e-5."
+    )
+    parser.add_argument(
+        "-ss",
+        "--dump_strain_step_size",
+        type=float,
+        default=0.001,
+        help="Difference between box sizes in real units between snapshots. Default is 0.001."
+    )
+    parser.add_argument(
+        "-m",
+        "--masses",
+        type=float,
+        help="node masses"
+    )
+    parser.add_argument(
+        "-ang",
+        "--angles",
+        type=float,
+        help="angle coeffitients"
+    )
+    parser.add_argument(
+        "-p",
+        "--pruning",
+        type=str,
+        help="type of edge pruning"
+    )
+    parser.add_argument(
+        "-pp",
+        "--pruning_parameters",
+        type=str,
+        help="two integers between 0 and 100, for example `1-40`, for random. Leave empty for bimodal and no pruning."
+    )
+    parser.add_argument(
+        "-c",
+        "--cores",
+        type=int,
+        default=10,
+        help="number of cores to run on. Default is 10."
+    )
+    parser.add_argument(
+        "-n",
+        "--output_directory",
+        type=str,
+        help="name of the output data directory."
+    )
+    
+    args = parser.parse_args()
+
+    min_size = args.min_size
+    max_size = args.max_size
+    n_sizes = args.n_sizes
+    batch_size = args.batch_size
+    strain = args.strain
+    strain_rate = args.strain_rate
+    strain_rate = args.strain_rate
+    dump_strain_step_size = args.dump_strain_step_size
+    compression_temperature_range = TemperatureRange(1e-7, 1e-7, 10.0)
+    mass = args.masses
+    angle_coeffs = args.angles
+    pruning = args.pruning
+    pruning_parameters = args.pruning_parameters
+    cores = args.cores
+    output_directory = args.output_directory
+
+    os.makedirs(os.path.join(os.getcwd(), output_directory), exist_ok=True)
+    logging.basicConfig(
+        filename=os.path.join(output_directory, "data_generation.log"),
+        level=logging.INFO,
+        format='%(message)s'
+    )
+
+    calculation_directory = os.path.join(os.getcwd(), output_directory)
+    n_atoms = np.linspace(min_size, max_size, n_sizes, dtype=int)
+    atom_types = np.linspace(3, 4, 4, dtype=int)
+    atom_sizes = np.linspace(1.2, 1.8, 4, dtype=float)
+    box_dim = [-40.0, 40.0, -40.0, 40.0, -0.1, 0.1]
+    temperature_range = TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0)
+    n_steps = 30000
+    batch_size = batch_size  # number of random networks with the same configuration
+    total_sims = n_sizes * batch_size
+
+    logging.info(f"Calculation directory: \n{calculation_directory}")
+    logging.info(f"N cores:        {cores}")
+    logging.info(f"Batch size:     {batch_size}")
+    logging.info(f"Total sims:     {total_sims}")
+
+    logging.info("\nLJ parameters:")
+    logging.info(f"Atoms:       {n_atoms}")
+    logging.info(f"Atom types:  {atom_types}")
+    logging.info(f"Atom sizes:  {atom_sizes}")
+    logging.info(f"Start box:   {box_dim}")
+    logging.info(f"T range:     {temperature_range}")
+    logging.info(f"Sim steps:   {n_steps}")
+
+    logging.info("\nCompression parameters:")
+    logging.info(f"Strain:         {strain}")
+    logging.info(f"Strain rate:    {strain_rate}")
+    logging.info(f"Dump step size: {dump_strain_step_size}")
+    logging.info(f"T range:        {compression_temperature_range}")
+    logging.info(f"Mass:           {mass:e}")
+    logging.info(f"Angle coeffs:   {angle_coeffs}")
+    logging.info(f"Pruning type:   {pruning}")
+    logging.info(f"Pruning params: {pruning_parameters}")
+
+    # make paths
+    paths = []
+    atoms = []
+    masses = []
+    angles = []
+    prunings = []
+    pps = []
+    strain_dirs = []
+    for size in n_atoms:
+        for i in range(batch_size):
+            atoms.append(size)
+            masses.append(mass)
+            angles.append(angle_coeffs)
+            prunings.append(pruning)
+            pps.append(pruning_parameters)
+            strain_dirs.append('x')
+            paths.append(os.path.join(calculation_directory, f"{size}_{4}", "network_data", str(i+1)))
+    
+    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, strain_dirs))
+    # print(inputs)
+
+    with Pool(cores) as p:
+        p.starmap(run_one_calc, inputs)

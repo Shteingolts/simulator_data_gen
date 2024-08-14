@@ -21,3 +21,4 @@ test_box
 constant_step_bimodal
 constant_step
 data
+data_big_pruned.tar
