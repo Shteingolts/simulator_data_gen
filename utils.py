@@ -1,3 +1,4 @@
+from copy import deepcopy
 from itertools import chain
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from matplotlib.patches import Patch
 from torch_geometric.data import Data
 
 from network import Box
+import network
 
 
 def flatten(iterable: list) -> list:
@@ -150,95 +152,17 @@ def load_data(filepath: str, skip: int = 1) -> list[list[Data]]:
     return filter_data(data, skip=skip)
 
 
-# def get_vel_rollout(
-#     cur_graph: Data, num_steps: int, simulator: Model, device: str
-# ):
-#     """
-#     Algorithm to generate the rollout
-#     for a given graph for a pre-specified number of steps.
-#     prev: the graph at timestep t - 1, assuming graph is at time t
-#     graph: current graph, at time t
-#     num_steps: the size of the rollout
-#     simulator: acc_model.pt
-#     """
-#     rollout = []
-#     rollout.append(cur_graph.to(device))
-    
-#     vel_data = Data(
-#         x=torch.zeros_like(cur_graph.x),
-#         edge_index=cur_graph.edge_index,
-#         edge_attr=cur_graph.edge_attr,
-#         box=cur_graph.box
-#     )
-#     # at step 0 we assume that velocity is equal to 0. 
-#     predicted_velocity_change = simulator(vel_data)[0]
-#     predicted_velocity_change = simulator.output_normalizer.inverse(predicted_velocity_change)
-#     predicted_position = cur_graph.x + predicted_velocity_change
-#     predicted_graph = deepcopy(cur_graph)
-#     predicted_graph.x = predicted_position
-    
-#     # add the updated position to the rollout
-#     rollout.append(predicted_graph.to(device))
+def add_pruned_bonds_back(original_network: network.Network, pruned_network: network.Network):
+    pruned_bonds = list(set(original_network.bonds) - set(pruned_network.bonds))
+    for b in pruned_bonds:
+        b.bond_coefficient = 0.0000
 
-#     # start simulation
-#     for _ in range(num_steps):
-#         vel_data = Data(
-#             x=rollout[-1].x-rollout[-2].x,
-#             edge_index=rollout[-1].edge_index,
-#             edge_attr=rollout[-1].edge_attr,
-#             box=rollout[-1].box
-#         )
-#         predicted_velocity_change = simulator(vel_data)[0]
-#         # predicted_velocity_change = simulator.output_normalizer.inverse(predicted_velocity_change)
-#         update_inputs = ModelInputs(rollout[-2], rollout[-1], None)
-#         predicted_graph = simulator.update(update_inputs, predicted_velocity_change.to(device))
-#         rollout.append(predicted_graph.to(device))
-
-#     return rollout
-
-
-# def get_rollout(
-#     prev_graph: Data, current_graph: Data, next_graph: Data, num_steps: int, simulator: Model, device: str
-# ):
-#     """
-#     Algorithm to generate the rollout
-#     for a given graph for a pre-specified number of steps.
-#     prev: the graph at timestep t - 1, assuming graph is at time t
-#     graph: current graph, at time t
-#     num_steps: the size of the rollout
-#     simulator: acc_model.pt
-#     """
-#     rollout = []
-#     rollout.append(current_graph.to(device))
-
-#     inputs = ModelInputs(prev_graph.to(device), current_graph.to(device), next_graph)
-#     accelerations = simulator(inputs)[0]
-#     predicted_graph = simulator.update(inputs, accelerations.to(device))
-    
-#     # box_x = deviation(predicted_graph.x[:, 0])
-#     # box_y = deviation(predicted_graph.x[:, 1])
-#     # predicted_graph.box = Box(-box_x, box_x, -box_y, box_y, -0.1, 0.1)
-
-#     # add the updated position to the rollout
-#     rollout.append(predicted_graph.to(device))
-#     # prev is now the current
-#     # prev_graph = current_graph.to(device)
-
-#     # start simulation
-#     for _ in range(num_steps):
-#         inputs = ModelInputs(rollout[-2].to(device), rollout[-1].to(device), None)
-#         accelerations = simulator(inputs)[0]
-#         predicted_graph = simulator.update(inputs, accelerations.to(device))
-        
-#         # box_x = deviation(predicted_graph.x[:, 0])
-#         # box_y = deviation(predicted_graph.x[:, 1])
-#         # predicted_graph.box = Box(-box_x, box_x, -box_y, box_y, -0.1, 0.1)
-
-#         # update prev and append to rollout
-#         # prev_graph = rollout[-1].to(device)
-#         rollout.append(predicted_graph.to(device))
-
-#     return rollout
+    with_dummies = deepcopy(pruned_network)
+    combined_bonds = with_dummies.bonds + pruned_bonds
+    with_dummies.bonds = combined_bonds
+    with_dummies.header.bonds = len(combined_bonds)
+    with_dummies.header.bond_types = len(combined_bonds)
+    return with_dummies
 
 
 def get_correct_edge_vec(original_graph: Data) -> Tensor:
@@ -362,25 +286,3 @@ def estimate_box(original_graph: Data, updated_graph: Data) -> Box:
     new_box_y = original_graph.box.y * updated_minmax_y / original_minmax_y
 
     return Box(-new_box_x.item() / 2, new_box_x.item() / 2, -new_box_y.item() / 2, new_box_y.item() / 2, -0.1, 0.1)
-
-
-# def adjust_box_for_graph(original_graph: Data, updated_graph: Data) -> Data:
-#     """Adjusts edges to the new box as well.
-
-#     Parameters
-#     ----------
-#     original_graph : Data
-#         graph before the optimization
-#     updated_graph : Data
-#         graph after the optimization
-
-#     Returns
-#     -------
-#     Data
-#         Graph with adjusted box and edges
-#     """
-#     updated_graph = scale_to_zero(updated_graph)
-#     new_box = estimate_box(original_graph, updated_graph)
-#     updated_graph.box = new_box
-#     updated_graph.edge_attr = get_periodic_estimation(updated_graph.cpu().detach(), new_box)
-#     return updated_graph

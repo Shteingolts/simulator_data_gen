@@ -545,6 +545,14 @@ class Network:
         return list(angles)
 
 
+    def mark_bond_types(self, bond_coeff):
+        for bond in self.bonds:
+            if bond.bond_coefficient == bond_coeff:
+                bond.bond_type = 42
+            else:
+                bond.bond_type = 1
+
+
     def _compute_dihedrals(self):
         raise NotImplementedError("not yet...")
 
@@ -976,7 +984,7 @@ class Network:
                 for _id, bond in enumerate(self.bonds):
                     properties = [
                         _id + 1,
-                        _id + 1,
+                        bond.bond_type if hasattr(bond, "bond_type") else _id+1,
                         bond.atom1.atom_id,
                         bond.atom2.atom_id,
                     ]
