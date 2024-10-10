@@ -52,14 +52,6 @@ class TestResult:
     def __repr__(self) -> str:
         return f"{self.path} | {self.original_p:.2f} | - {self.optimized_lammps_p:.2f} | {self.optimized_sim_p:.2f}"
 
-def calculate_delta(last, first,axis,device):
-    """
-    last: the last graph of the trajectory
-    first: the first graph from which the displacement is measured
-    axis: 0 is x, and 1 is y
-    """
-    return (max(last.x[:, axis].to(device)) - min(last.x[:, axis].to(device))) - (max(first.x[:, axis].to(device)) - min(first.x[:, axis].to(device))) 
-
 def calc_p_ratio(target_dir: str) -> float:
     with open(os.path.join(target_dir, "dump.lammpstrj")) as f:
         content = f.readlines()
