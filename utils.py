@@ -1,8 +1,10 @@
 from copy import deepcopy
 from itertools import chain
+import random
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import torch
 from torch import Tensor
 from matplotlib.patches import Patch
@@ -275,6 +277,75 @@ def get_periodic_estimation(graph: Data, box: Box) -> Tensor:
     return new_edge_attr
 
 
+def draw_network(
+    net: network.Network,
+    edges: bool = True,
+    periodic_edges: bool = True,
+    box: bool = False,
+    node_color: str = "skyblue",
+    standalone: bool = True,
+    node_size: float = 20,
+    figure_scale: float = 3
+):
+    if standalone:
+        plt.figure(figsize=(8, 8))
+    G = nx.Graph()
+    # Add nodes
+    for atom in net.atoms:
+        G.add_node(atom.atom_id)
+
+    pos = {atom.atom_id: (float(atom.y), float(atom.x)) for atom in net.atoms}
+
+    # Add edges
+    if edges:
+        edge_index = [(bond.atom1.atom_id, bond.atom2.atom_id) for bond in net.bonds]
+        naive_edge_lengths = [bond.atom1.dist(bond.atom2) for bond in net.bonds]
+        for edge, length in zip(edge_index, naive_edge_lengths):
+            if periodic_edges:
+                G.add_edge(edge[0], edge[1])
+            else:
+                if length < net.box.x // 2:
+                    G.add_edge(edge[0], edge[1])
+
+    if box:
+        B = nx.Graph()
+        box_corners = [(net.box.x1, net.box.y1), (net.box.x1, net.box.y2), (net.box.x2, net.box.y1), (net.box.x2, net.box.y2)]
+        box_edges = [
+            [box_corners[0] ,box_corners[1]],
+            [box_corners[1], box_corners[2]],
+            [box_corners[2], box_corners[3]],
+            [box_corners[3], box_corners[0]]]
+        
+        for corner, edge in zip(box_corners, box_edges):
+            B.add_node(corner)
+            B.add_edge(edge[0], edge[1])
+        b_pos = {}
+        b_pos[box_corners[0]] = (net.box.x1, net.box.y2)
+        b_pos[box_corners[1]] = (net.box.x2, net.box.y2)
+        b_pos[box_corners[2]] = (net.box.x2, net.box.y1)
+        b_pos[box_corners[3]] = (net.box.x1, net.box.y1)
+
+        nx.draw_networkx(B, b_pos, with_labels=False, node_color="black", node_size=1)
+
+    nx.draw_networkx(G, pos, with_labels=False, node_color=node_color, node_size=node_size, font_size=10)
+    # nx.draw_networkx(G, with_labels=False, node_color=node_color, node_size=node_size, font_size=10)
+    if standalone:
+        plt.show()
+
+
+def remove_periodic(net: network.Network):
+    non_periodic_bonds = []
+    for bond in net.bonds:
+        if bond.atom1.dist(bond.atom2) < net.box.x // 2:
+            non_periodic_bonds.append(bond)
+    net.bonds = non_periodic_bonds
+    net.angles = net._compute_angles(net.atoms, net.box)
+    net.header.bonds = len(non_periodic_bonds)
+    net.header.bond_types = len(non_periodic_bonds)
+    net.header.angles = len(net.angles)
+    return net
+
+
 def estimate_box(original_graph: Data, updated_graph: Data) -> Box:
     original_minmax_x = torch.max(original_graph.x[:, 0]) - torch.min(original_graph.x[:, 0])
     updated_minmax_x = torch.max(updated_graph.x[:, 0]) - torch.min(updated_graph.x[:, 0])
@@ -286,3 +357,61 @@ def estimate_box(original_graph: Data, updated_graph: Data) -> Box:
     new_box_y = original_graph.box.y * updated_minmax_y / original_minmax_y
 
     return Box(-new_box_x.item() / 2, new_box_x.item() / 2, -new_box_y.item() / 2, new_box_y.item() / 2, -0.1, 0.1)
+
+
+def recalc_bond(input_network: network.Network, bond: network.Bond, periodic: bool = True):
+    """
+    this function recalculates the edges from the updated node positions after the perturbation.
+    """
+    if periodic:
+        source_node = np.array((bond.atom1.x, bond.atom1.y))
+        target_node = np.array((bond.atom2.x, bond.atom2.y))
+
+        box_x = input_network.box.x
+        box_y = input_network.box.y
+
+        dx = np.abs(source_node[0] - target_node[0])
+        dy = np.abs(source_node[1] - target_node[1])
+
+        real_x1 = np.where(dx > box_x / 2, np.minimum(source_node[0], target_node[0]) + box_x, source_node[0])
+        real_x2 = np.where(dx > box_x / 2, np.maximum(source_node[0], target_node[0]), target_node[0])
+
+        real_y1 = np.where(dy > box_y / 2, np.minimum(source_node[1], target_node[1]) + box_y, source_node[1])
+        real_y2 = np.where(dy > box_y / 2, np.maximum(source_node[1], target_node[1]), target_node[1])
+
+        length = np.sqrt((real_x2 - real_x1)**2 + (real_y2 - real_y1)**2)
+        bond_coeff = 1/(length**2)
+        bond.length = length
+        bond.bond_coefficient = bond_coeff
+        return bond
+    else:
+        source_node = bond.atom1
+        target_node = bond.atom2
+
+        bond_length = source_node.dist(target_node)
+        bond_coeff = 1 / (bond_length**2)
+        return network.Bond(bond.atom1, bond.atom2, bond_length, bond_coeff)
+
+
+def recalc_bonds(input_network: network.Network, periodic: bool = True):
+    """
+    this function recalculates the edges from the updated node positions after the perturbation.
+    """
+    new_bonds = [recalc_bond(input_network, bond, periodic=periodic) for bond in input_network.bonds]
+    input_network.bonds = new_bonds
+    return new_bonds
+
+
+def inject_noise(input_network: network.Network, std: float | None = None, angle_coeffs: float = 0.01) -> network.Network:
+    if std is not None:
+        for atom in input_network.atoms:
+            atom.x += random.gauss(mu=0, sigma=std)
+            atom.y += random.gauss(mu=0, sigma=std)
+    else:
+        average_bond_length = sum([bond.length for bond in input_network.bonds])/len(input_network.bonds)
+        for atom in input_network.atoms:
+            atom.x += random.gauss(mu=0, sigma=average_bond_length/5)
+            atom.y += random.gauss(mu=0, sigma=average_bond_length/5)
+    _new_bonds = recalc_bonds(input_network, periodic=True)
+    input_network.angles = input_network._compute_angles_fast(angle_coeffs)
+    return input_network

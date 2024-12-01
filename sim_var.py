@@ -17,6 +17,7 @@ from simulation import (
     run_lammps_calc,
 )
 
+from utils import recalc_bonds, inject_noise
 
 def prune_edges(network: Network, portion: float) -> Network:
     """Prunes a portion of bonds randomly in the network
@@ -217,6 +218,7 @@ def run_one_calc(
         angle_coeff: float,
         pruning: str,
         pruning_parameters: str,
+        noise: str,
         strain_direction: str = 'x',
 
     ):
@@ -245,6 +247,15 @@ def run_one_calc(
         include_angles=True,
         include_dihedrals=False
     )
+
+    # Inject noise into atom cordinates
+    match noise:
+        case 'yes':
+            new_network = inject_noise(new_network, angle_coeffs=angle_coeff)
+        case 'no':
+            pass
+        case _:
+            raise Exception(f'Acceptable values for `noise` argument are: `yes` or `no`, got {noise} instead.')
 
     # Apply pruning based on bimodal distribution
     match pruning:
@@ -364,6 +375,12 @@ if __name__ == "__main__":
         help="two integers between 0 and 100, for example `1-40`, for random. Leave empty for bimodal and no pruning."
     )
     parser.add_argument(
+        "-n",
+        "--noise",
+        type=str,
+        help="Inject noise into networks to make them more diverse. By default each atom is displaced in x and y by a random value sampled from a gaussian with mu=0 and std=0.2*ave_bond_length"
+    )
+    parser.add_argument(
         "-c",
         "--cores",
         type=int,
@@ -371,7 +388,7 @@ if __name__ == "__main__":
         help="number of cores to run on. Default is 10."
     )
     parser.add_argument(
-        "-n",
+        "-out",
         "--output_directory",
         type=str,
         help="name of the output data directory."
@@ -392,6 +409,7 @@ if __name__ == "__main__":
     angle_coeffs = args.angles
     pruning = args.pruning
     pruning_parameters = args.pruning_parameters
+    add_noise = args.noise
     cores = args.cores
     output_directory = args.output_directory
 
@@ -434,6 +452,7 @@ if __name__ == "__main__":
     logging.info(f"Angle coeffs:   {angle_coeffs}")
     logging.info(f"Pruning type:   {pruning}")
     logging.info(f"Pruning params: {pruning_parameters}")
+    logging.info(f"Injects noise?: {add_noise}")
 
     # make paths
     paths = []
@@ -442,6 +461,7 @@ if __name__ == "__main__":
     angles = []
     prunings = []
     pps = []
+    noises = []
     strain_dirs = []
     for size in n_atoms:
         for i in range(batch_size):
@@ -450,10 +470,11 @@ if __name__ == "__main__":
             angles.append(angle_coeffs)
             prunings.append(pruning)
             pps.append(pruning_parameters)
+            noises.append(add_noise)
             strain_dirs.append('x')
             paths.append(os.path.join(calculation_directory, f"{size}_{4}", "network_data", str(i+1)))
     
-    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, strain_dirs))
+    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, noises, strain_dirs))
     # print(inputs)
 
     with Pool(cores) as p:

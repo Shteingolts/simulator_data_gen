@@ -6,12 +6,15 @@ v. 0.1.6
 
 from __future__ import annotations
 
+from collections import defaultdict
 import os
 import pickle
 import sys
 from copy import deepcopy
 from math import acos, degrees, sqrt
 from typing import TextIO
+
+import numpy as np
 
 
 def table_row(items: list, widths: list, indent: str = "right") -> str:
@@ -23,7 +26,7 @@ def table_row(items: list, widths: list, indent: str = "right") -> str:
     for item, width in zip(items, widths):
         line.append(add_spaces(str(item), width, indent))
 
-    return "".join(line) + "\n"
+    return "   ".join(line) + "\n"
 
 
 def add_spaces(string: str, width: int, indent: str = "right") -> str:
@@ -164,14 +167,14 @@ class Bond:
     length: float
     bond_coefficient: float
 
-    def __init__(self, atom1: Atom, atom2: Atom):
+    def __init__(self, atom1: Atom, atom2: Atom, length: None | float = None, bond_coeff: None | float = None):
         """Due to the periodicity of the network, when making a bond between two atoms
         one needs to find the closest pair of two atoms, which may not be in the same
         simulation box."""
         self.atom1 = atom1
         self.atom2 = atom2
-        self.length = atom1.dist(atom2)
-        self.bond_coefficient = 1 / (self.length**2)
+        self.length = atom1.dist(atom2) if length is None else length
+        self.bond_coefficient = 1 / (self.length**2) if bond_coeff is None else bond_coeff
 
     def __repr__(self) -> str:
         return f"""Bond(atom1: {self.atom1},
@@ -187,9 +190,9 @@ class Bond:
 
     def __hash__(self) -> int:
         if self.atom1.atom_id > self.atom2.atom_id:
-            return hash((self.atom2.atom_id, self.atom1.atom_id, round(self.length, 6)))
+            return hash((self.atom2.atom_id, self.atom1.atom_id))
         else:
-            return hash((self.atom1.atom_id, self.atom2.atom_id, round(self.length, 6)))
+            return hash((self.atom1.atom_id, self.atom2.atom_id))
 
 
 class Angle:
@@ -259,7 +262,7 @@ class Angle:
             mag_v23 = sqrt(v23[0] ** 2 + v23[1] ** 2 + v23[2] ** 2)
 
             cos_angle = dot_product / (mag_v12 * mag_v23)
-            angle = round(degrees(acos(cos_angle)), 6)
+            angle = degrees(acos(cos_angle))
             self.value = angle
         else:
             self.value = value
@@ -545,12 +548,67 @@ class Network:
         return list(angles)
 
 
-    def mark_bond_types(self, bond_coeff):
-        for bond in self.bonds:
-            if bond.bond_coefficient == bond_coeff:
-                bond.bond_type = 42
-            else:
-                bond.bond_type = 1
+    def _compute_angles_fast(self, ang_coeff: float) -> list[Angle]:
+
+        self.atoms = sorted(self.atoms, key=lambda x: x.atom_id)
+
+        nodes  = np.array([(atom.x, atom.y) for atom in self.atoms])
+        edges = np.array([(bond.atom1.atom_id-1, bond.atom2.atom_id-1) for bond in self.bonds])
+
+        def compute_angle(vec1, vec2):
+            return np.degrees(np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))))
+
+        adj_list = {}
+        for edge in edges:
+            try:
+                adj_list[edge[0]].append(edge[1])
+            except KeyError:
+                adj_list[edge[0]] = [edge[1]]
+            try:
+                adj_list[edge[1]].append(edge[0])
+            except KeyError:
+                adj_list[edge[1]] = [edge[0]]
+
+        adj_list
+        angles = []
+        for center_node in adj_list:
+            center_position = nodes[center_node]
+            neighbour_nodes = adj_list[center_node]
+            vecs = []
+            for n in neighbour_nodes:
+                neighbour_position = nodes[n]
+                vec = center_position - neighbour_position
+                vec[0] = np.where(abs(vec[0]) >= self.box.x // 2,
+                    vec[0] - self.box.x*np.sign(vec[0]),
+                    vec[0]
+                )
+                
+                vec[1] = np.where(abs(vec[1]) >= self.box.y // 2,
+                    vec[1] - self.box.y*np.sign(vec[1]),
+                    vec[1]
+                )
+                vecs.append(vec)
+
+            for i in range(len(vecs)):
+                for j in range(i+1, len(vecs)):
+                    node1, node3 = neighbour_nodes[i], neighbour_nodes[j]
+                    value = compute_angle(vecs[i], vecs[j])
+                    angles.append(
+                        Angle(
+                            0,
+                            self.atoms[node1],
+                            self.atoms[center_node],
+                            self.atoms[node3],
+                            self.box,
+                            ang_coeff,
+                            value,
+                        )
+                    )
+
+        for i, angle in enumerate(angles):
+            angle.angle_id = i+1
+        
+        return angles
 
 
     def _compute_dihedrals(self):
@@ -954,9 +1012,9 @@ class Network:
                         1,  # molecule ID. always 1 for now
                         atom.atom_type,  # defaults to 1 when construsted
                         format(0.0, ".6f"),  # charge. always neutral for now
-                        format(round(atom.x, 6), ".6f"),
-                        format(round(atom.y, 6), ".6f"),
-                        format(round(atom.z, 6), ".6f"),
+                        format(round(atom.x, 9), ".9f"),
+                        format(round(atom.y, 9), ".9f"),
+                        format(round(atom.z, 9), ".9f"),
                     ]
                     widths = [7, 7, 7, 11, 11, 11, 11]
                     line = table_row(properties, widths)
@@ -970,10 +1028,10 @@ class Network:
                 for n, bond in enumerate(self.bonds):
                     properties = [
                         n + 1,
-                        format(round(bond.bond_coefficient, 6), ".6f"),
-                        format(round(bond.length, 6), ".6f"),
+                        format(round(bond.bond_coefficient, 9), ".9f"),
+                        format(round(bond.length, 9), ".9f"),
                     ]
-                    widths = [7, 11, 11]
+                    widths = [7, 25, 25]
                     line = table_row(properties, widths)
                     file.write(line)
 
@@ -984,7 +1042,7 @@ class Network:
                 for _id, bond in enumerate(self.bonds):
                     properties = [
                         _id + 1,
-                        bond.bond_type if hasattr(bond, "bond_type") else _id+1,
+                        _id + 1,
                         bond.atom1.atom_id,
                         bond.atom2.atom_id,
                     ]

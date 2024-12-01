@@ -1,3 +1,7 @@
+"""
+OLD FILE DON'T USE
+"""
+
 import os
 import subprocess
 from time import perf_counter
@@ -115,11 +119,12 @@ if __name__ == "__main__":
         n_steps=30000,
     )
     comp_sim = CompressionSimulation(
+        strain_direction='x',
         network_filename="network.lmp",  # do not change!
-        strain=0.080,  # % of box X dimension
+        strain=0.030,  # % of box X dimension
         strain_rate=1e-5,  # speed of compression
+        desired_step_size=0.001,
         temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
-        dump_frequency=None,  # `None` if you want 2000 steps or put a value to dump every N steps
     )
 
     gen_sim_data(custom_dir="", lj_sim=lj_sim, comp_sim=comp_sim, n_networks=60)
