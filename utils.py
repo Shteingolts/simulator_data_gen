@@ -173,12 +173,7 @@ def get_correct_edge_vec(original_graph: Data) -> Tensor:
     
     box = original_graph.box
     naive_edge_vectors = original_graph.x[original_graph.edge_index[0]] - original_graph.x[original_graph.edge_index[1]]
-    # periodic_edge_indices = torch.where(torch.norm(naive_edge_vectors, dim=1) > (box.x / 2 + box.y / 2) / 2)
-    # periodic_edge_vectors = naive_edge_vectors[periodic_edge_indices]
-    # nonperiodic_edge_indices = torch.where(torch.norm(naive_edge_vectors, dim=1) <= (box.x / 2 + box.y / 2) / 2)
-    # nonperiodic_edge_vectors = naive_edge_vectors[nonperiodic_edge_indices]
 
-    # periodic_node_pairs = original_graph.edge_index.T[periodic_edge_indices]
     fixed_target_nodes_x = torch.zeros_like(original_target_nodes[:, 0])
     for index, edge in enumerate(naive_edge_vectors[:, 0]):
         if torch.abs(edge) > box.x / 2:
@@ -187,19 +182,11 @@ def get_correct_edge_vec(original_graph: Data) -> Tensor:
                     box.x / 2 - torch.abs(original_source_nodes[:, 0][index])
                     + box.x / 2 - torch.abs(original_target_nodes[:, 0][index])
                     )
-            # print(f"ACTUAL EDGE INDEX: {index}")
-            # print(f"ACTUAL EDGE: {naive_edge_vectors[index]}")
-            # print(f"TARGET NODE INDEX {original_graph.edge_index[1][index]}")
-            # print(f"TARGET NODE: {original_graph.x[original_graph.edge_index[1][index]]}")
-            # print(f"CHANGED: {changed}")
-            # print(f"FROM TARGET LIST: {original_target_nodes[index]}")
-            # print(type(original_graph.edge_index[1][index].item()))
             fixed_target_nodes_x[index] = changed
     
     for i, v in enumerate(fixed_target_nodes_x):
         if v == 0:
             fixed_target_nodes_x[i] = original_target_nodes[:, 0][i]
-
 
     fixed_target_nodes_y = torch.zeros_like(original_target_nodes[:, 1])
     for index, edge in enumerate(naive_edge_vectors[:, 1]):
@@ -209,13 +196,7 @@ def get_correct_edge_vec(original_graph: Data) -> Tensor:
                     box.y / 2 - torch.abs(original_source_nodes[:, 1][index])
                     + box.y / 2 - torch.abs(original_target_nodes[:, 1][index])
                     )
-            # print(f"ACTUAL EDGE INDEX: {index}")
-            # print(f"ACTUAL EDGE: {naive_edge_vectors[index]}")
-            # print(f"TARGET NODE INDEX {original_graph.edge_index[1][index]}")
-            # print(f"TARGET NODE: {original_graph.x[original_graph.edge_index[1][index]]}")
-            # print(f"CHANGED: {changed}")
-            # print(f"FROM TARGET LIST: {original_target_nodes[index]}")
-            # print(type(original_graph.edge_index[1][index].item()))
+
             fixed_target_nodes_y[index] = changed
     
     for i, v in enumerate(fixed_target_nodes_y):

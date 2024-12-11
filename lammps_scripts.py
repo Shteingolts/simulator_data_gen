@@ -48,6 +48,7 @@ class LJSimulation:
         iso_p: float = 0.2,
         p_damp: float = 0.6,
         n_steps: int = 30000,
+        n_parts: list[int] | None = None
     ):
         if len(atom_sizes) != n_atom_types:
             raise IOError(
@@ -62,15 +63,22 @@ class LJSimulation:
         self.iso_p = iso_p
         self.p_damp = p_damp
         self.n_steps = n_steps
+        self.n_parts = n_parts
 
     def write_to_file(self, directory: str | None = None):
         create_atoms_section: str = ""
         group_section: str = ""
         group_size_section: str = ""
-        for i in range(self.n_atom_types):
-            create_atoms_section += f"create_atoms {i+1} random ${{npart}} {random.randint(1, 999999)} NULL overlap 0.5 maxtry 100\n"
-            group_section += f"group size{i+1} type {i+1}\n"
-            group_size_section += f"set group size{i+1} diameter {self.atom_sizes[i]}\n"
+        if self.n_parts is None:
+            for i in range(self.n_atom_types):
+                create_atoms_section += f"create_atoms {i+1} random ${{npart}} {random.randint(1, 999999)} NULL overlap 0.5 maxtry 100\n"
+                group_section += f"group size{i+1} type {i+1}\n"
+                group_size_section += f"set group size{i+1} diameter {self.atom_sizes[i]}\n"
+        else:
+            for i, n in enumerate(self.n_parts):
+                create_atoms_section += f"create_atoms {i+1} random {n} {random.randint(1, 999999)} NULL overlap 0.5 maxtry 100\n"
+                group_section += f"group size{i+1} type {i+1}\n"
+                group_size_section += f"set group size{i+1} diameter {self.atom_sizes[i]}\n"
 
         script_template: str = f"""
 #area fraction
@@ -776,7 +784,7 @@ timestep	0.001
 
 # Setup output
 thermo		1000
-thermo_style custom step temp pe ebond eangle edihed press pxx pyy pzz pxy pxz pyz lx ly lz vol 
+thermo_style custom step temp pe press pxx pyy pzz pxy pxz pyz lx ly lz vol
 thermo_modify norm no
 
 """

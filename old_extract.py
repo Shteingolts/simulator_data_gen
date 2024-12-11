@@ -15,27 +15,27 @@ from simulation import (
     run_lammps_calc,
 )
 
-abs_path = "/home/sergey/work/data_big_pruned_0.3_a0.01"
+abs_path = "/home/sergey/work/simulator_data_gen/data/raw/noised_prund"
 data = []
 for t in os.listdir(abs_path):
-    current_dir = os.path.join(abs_path, t, "network_data")
-    # print(current_dir)
-    for d in os.listdir(current_dir):
-        local_dir = os.path.join(current_dir, d)
-        print(local_dir)
-        current_network = network.Network.from_data_file(
-            os.path.join(local_dir, "network.lmp"),
-            include_angles=True,
-            include_dihedrals=False,
-            include_default_masses=1e6)
-        current_network.set_angle_coeff(0.01)
-        sim = convert.parse_dump(
-            os.path.join(local_dir, "dump.lammpstrj"),
-            current_network,
-            node_features="coord",
-            skip=1
-            )
-        data.append(sim)
+    if t != 'data_generation.log':
+        current_dir = os.path.join(abs_path, t, "network_data")
+        for d in os.listdir(current_dir):
+            local_dir = os.path.join(current_dir, d)
+            print(local_dir)
+            current_network = network.Network.from_data_file(
+                os.path.join(local_dir, "network.lmp"),
+                include_angles=True,
+                include_dihedrals=False,
+                include_default_masses=1e6)
+            current_network.set_angle_coeff(0.00)
+            sim = convert.parse_dump(
+                os.path.join(local_dir, "dump.lammpstrj"),
+                current_network,
+                node_features="coord",
+                skip=1
+                )
+            data.append(sim)
 
 torch.save(data, f"{os.path.basename(abs_path)}.pt")
 

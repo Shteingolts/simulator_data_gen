@@ -1,4 +1,4 @@
-# GNN Simulator Data Generator
+# GNN Simulator Data Generator (OUTDATED)
 
 ## Overview
 The `GNN Simulator Data Generator`, as the name suggests, automates the generation of random disordered elastic networks and the simulation of their compression using LAMMPS.

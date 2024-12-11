@@ -8,6 +8,7 @@ the lammps trajectory file format.
 
 Intended as a substite for the helpers.py file in the future.
 """
+from array import ArrayType
 import os
 
 import numpy as np
@@ -99,6 +100,54 @@ def assemble_data(
         box=box,
     )
 
+def compute_bonds_fast(input_network: network.Network, nodes: ArrayType | None, edge_index: ArrayType | None, box_size: tuple[float] | None):
+    input_network.fix_sort()
+    if nodes is None:
+        nodes  = np.array([(atom.x, atom.y) for atom in input_network.atoms])
+    if edge_index is None:
+        edge_index = np.array([(bond.atom1.atom_id-1, bond.atom2.atom_id-1) for bond in input_network.bonds])
+    if box_size is None:
+        box_size_x = input_network.box.x
+        box_size_y = input_network.box.y
+    else:
+        box_size_x = box_size[0]
+        box_size_y = box_size[1]
+    
+    adj_list = {}
+    for edge in edge_index:
+        try:
+            adj_list[edge[0]].append(edge[1])
+        except KeyError:
+            adj_list[edge[0]] = [edge[1]]
+        try:
+            adj_list[edge[1]].append(edge[0])
+        except KeyError:
+            adj_list[edge[1]] = [edge[0]]
+    
+    bonds = set()
+    edge_attr = set()
+    for center_node in range(len(nodes)):
+        center_position = nodes[center_node]
+        neighbours = adj_list[center_node]
+        for n in neighbours:
+            neighbour_position = nodes[n]
+            vec = center_position - neighbour_position
+            vec[0] = np.where(abs(vec[0]) >= box_size_x // 2,
+                vec[0] - box_size_x*np.sign(vec[0]),
+                vec[0]
+            )
+            
+            vec[1] = np.where(abs(vec[1]) >= box_size_y // 2,
+                vec[1] - box_size_y*np.sign(vec[1]),
+                vec[1]
+            )
+            bonds.add(
+                Bond(input_network.atoms[center_node], input_network.atoms[n], np.linalg.norm(vec), 1/np.power(np.linalg.norm(vec), 2))
+            )
+            edge_attr.add(torch.tensor([vec[0].item(), vec[1].item(), np.linalg.norm(vec).item(), 1/np.power(np.linalg.norm(vec), 2).item()]))
+
+    return list(bonds), torch.stack(list(edge_attr))
+
 
 def parse_dump(
     dump_filepath: str,
@@ -133,7 +182,6 @@ def parse_dump(
         if "ITEM: TIMESTEP" in line:
             timesteps.append(index)
 
-    original_network.bonds
     original_edge_index = [
         (bond.atom1.atom_id, bond.atom2.atom_id) for bond in original_network.bonds
     ]

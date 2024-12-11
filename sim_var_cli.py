@@ -475,7 +475,6 @@ if __name__ == "__main__":
             paths.append(os.path.join(calculation_directory, f"{size}_{4}", "network_data", str(i+1)))
     
     inputs = list(zip(paths, atoms, masses, angles, prunings, pps, noises, strain_dirs))
-    # print(inputs)
 
     with Pool(cores) as p:
         p.starmap(run_one_calc, inputs)

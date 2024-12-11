@@ -549,7 +549,8 @@ class Network:
 
 
     def _compute_angles_fast(self, ang_coeff: float) -> list[Angle]:
-
+        
+        self.fix_sort()
         self.atoms = sorted(self.atoms, key=lambda x: x.atom_id)
 
         nodes  = np.array([(atom.x, atom.y) for atom in self.atoms])
@@ -569,7 +570,6 @@ class Network:
             except KeyError:
                 adj_list[edge[1]] = [edge[0]]
 
-        adj_list
         angles = []
         for center_node in adj_list:
             center_position = nodes[center_node]
