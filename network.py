@@ -549,6 +549,8 @@ class Network:
 
 
     def _compute_angles_fast(self, ang_coeff: float) -> list[Angle]:
+        def compute_angle(vec1, vec2):
+            return np.degrees(np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))))
         
         self.fix_sort()
         self.atoms = sorted(self.atoms, key=lambda x: x.atom_id)
@@ -556,8 +558,7 @@ class Network:
         nodes  = np.array([(atom.x, atom.y) for atom in self.atoms])
         edges = np.array([(bond.atom1.atom_id-1, bond.atom2.atom_id-1) for bond in self.bonds])
 
-        def compute_angle(vec1, vec2):
-            return np.degrees(np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))))
+
 
         adj_list = {}
         for edge in edges:
@@ -628,6 +629,7 @@ class Network:
                 previous_atom = self.atoms[index - 1]
                 if atom.atom_id - previous_atom.atom_id != 1:
                     atom.atom_id = previous_atom.atom_id + 1
+        
         # check if something went wrong
         for atom in self.atoms:
             if atom.atom_id > len(self.atoms):

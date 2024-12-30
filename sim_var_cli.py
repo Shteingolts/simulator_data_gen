@@ -13,11 +13,10 @@ from simulation import (
     CompressionSimulation,
     LJSimulation,
     TemperatureRange,
-    construct_network,
     run_lammps_calc,
 )
 
-from utils import recalc_bonds, inject_noise
+from utils import inject_noise
 
 def prune_edges(network: Network, portion: float) -> Network:
     """Prunes a portion of bonds randomly in the network
@@ -109,106 +108,17 @@ def prune_bimodal(network: Network) -> Network:
     return network
 
 
-# calculation_directory = os.path.join(os.getcwd(), "data_vanilla_nopruning_mass5e8_ang0.01")
-# print(f"Main dir: {calculation_directory}")
-
-# n_atoms = np.linspace(140, 240, 11, dtype=int)
-# print(f"N atoms:    {n_atoms}")
-# atom_types = np.linspace(3, 4, 4, dtype=int)
-# # print(f"Atom types: {atom_types}")
-# atom_sizes = np.linspace(1.2, 1.8, 4, dtype=float)
-# # print(f"Atom sizes: {atom_sizes}")
-# box_dim = [-40.0, 40.0, -40.0, 40.0, -0.1, 0.1]
-# # print(f"Box size:   {box_dim}")
-# temperature_range = TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0)
-# # print(f"Temp range: {temperature_range}")
-# n_steps = 30000
-# print(f"N steps:    {n_steps}")
-# batch_size = 5  # number of random networks with the same configuration
-# total_sims = len(n_atoms) * len(atom_types) * batch_size
-# print(f"N networks: {total_sims}")
-
-
-# def do_work(n_atoms: int, xy: bool = True):
-#     lj_sim = LJSimulation(
-#         n_atoms=n_atoms,
-#         n_atom_types=4,
-#         atom_sizes=atom_sizes,
-#         box_dim=box_dim,
-#         temperature_range=temperature_range,
-#         n_steps=n_steps,
-#     )
-#     comp_sim = CompressionSimulation(
-#         network_filename="network.lmp",  # do not change!
-#         strain=0.03,  # % of box X dimension
-#         strain_rate=1e-5,  # speed of compression
-#         desired_step_size=0.001,
-#         temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
-#     )
-#     custom_dir = os.path.join(calculation_directory, f"{n_atoms}_{4}")
-#     os.makedirs(custom_dir)
+def randomize_LJ(n_atoms: int):
+    atom_types = random.randint(2, 8)
+    atom_sizes = [random.uniform(1.0, 2.0) for i in range(atom_types)]
     
-#     assert(os.path.exists(custom_dir) and os.path.isdir(custom_dir))
-#     data_dir = os.path.join(custom_dir, "network_data")
-#     print(f"Data dir: {data_dir}")
-
-#     # Create a separate directory for each network
-#     for b in range(batch_size):
-#         os.makedirs(os.path.join(data_dir, str(b + 1)))
-#     dirs = os.listdir(data_dir)
-#     dirs.sort(key=lambda x: int(x))
-
-#     # Work with each network one by one
-#     previous_direction = 1
-#     for network_dir in dirs:
-#         print(f"Network dir: {network_dir}")
-#         target_dir = os.path.join(data_dir, network_dir)
-#         print(f"Target dir: {target_dir}")
-
-#         lj_sim.write_to_file(target_dir)
-#         run_lammps_calc(target_dir, input_file="lammps.in", mode="single")
-        
-#         # Create a network from LJ coords. 
-#         # Carefull with beads mass, too low and everything breaks
-#         new_network = Network.from_atoms(
-#             os.path.join(target_dir, "coord.dat"),
-#             periodic=True,
-#             include_default_masses=5e8, # arbitrary mass for interesting compression
-#             include_angles=True,
-#             include_dihedrals=False
-#         )
-
-#         # Apply pruning based on bimodal distribution
-#         # new_network = prune_bimodal(new_network)
-
-#         # Set angle coeffs to 0.01 for all angles
-#         new_network.set_angle_coeff(0.01)
-
-#         # Save the network into a file
-#         new_network.write_to_file(os.path.join(target_dir, "network.lmp"))
-
-#         # Run compression simulation
-#         if xy:
-#             current_direction = 0 if previous_direction == 1 else 1
-#             comp_sim = CompressionSimulation(
-#                 network_filename="network.lmp",  # do not change!
-#                 strain=0.03,  # % of box X dimension
-#                 strain_rate=1e-5,  # speed of compression
-#                 strain_direction='x' if current_direction == 0 else 'y',
-#                 desired_step_size=0.001,
-#                 temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
-#             )
-#             previous_direction = current_direction
-
-#         comp_sim._recalc_dump_freq(new_network.box.x)
-#         comp_sim.write_to_file(target_dir)
-#         run_lammps_calc(
-#             target_dir,
-#             input_file="in.deformation",
-#             mode="single",
-#             num_threads=1,
-#             num_procs=1,
-#         )
+    lj_sim = LJSimulation(
+        n_atoms=n_atoms,
+        n_atom_types=4,
+        atom_sizes=[1.6, 1.4, 1.2, 1.0],
+        box_dim=[-40, 40, -40, 40, -0.1, 0.1],
+        temperature_range=TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0),
+    )
 
 
 def run_one_calc(

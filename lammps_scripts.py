@@ -47,6 +47,7 @@ class LJSimulation:
         temperature_range: TemperatureRange = TemperatureRange(),
         iso_p: float = 0.2,
         p_damp: float = 0.6,
+        Kn: float = 1.0,
         n_steps: int = 30000,
         n_parts: list[int] | None = None
     ):
@@ -62,6 +63,7 @@ class LJSimulation:
         self.temperature_range = temperature_range
         self.iso_p = iso_p
         self.p_damp = p_damp
+        self.Kn = Kn
         self.n_steps = n_steps
         self.n_parts = n_parts
 
@@ -123,7 +125,7 @@ comm_modify vel yes
 
 
 # define soft granualr potential forces (as done in Reid paper).
-pair_style gran/hooke 1.0 0.0 0.0 0.0 0.0 0
+pair_style gran/hooke {self.Kn} 0.0 0.0 0.0 0.0 0
 pair_coeff * *
 
 # minimize energy first to avoid overlapping particles
