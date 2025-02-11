@@ -26,17 +26,16 @@ def extract_from_dump(path: str) -> list[Data]:
 
 
 # normal extract
-raw_data_path = "/home/sergey/work/simulator_data_gen/large_noised_pruned"
-binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/800_sims_noised_pruned.pt"
+raw_data_path = "/home/sergey/work/simulator_data_gen/stiff"
+binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/stiff.pt"
 paths = []
 for t in os.listdir(raw_data_path):
-    if t != "data_generation.log" and int(t.split('_')[0]) < 110:
+    if t != "data_generation.log":
         current_dir = os.path.join(raw_data_path, t, "network_data")
         for d in os.listdir(current_dir):
             local_dir = os.path.join(current_dir, d)
             paths.append(local_dir)
 
-# print(paths)
 
 # for auxetic
 # raw_data_path = "/home/sergey/work/auxetic_optimizer/auxetic_data"
@@ -52,4 +51,4 @@ if __name__ == "__main__":
     with Pool() as pool:
         data = pool.map(extract_from_dump, paths)
 
-    # torch.save(data, binary_data_path)
+    torch.save(data, binary_data_path)

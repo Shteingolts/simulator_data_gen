@@ -122,16 +122,16 @@ def randomize_LJ(n_atoms: int):
 
 
 def run_one_calc(
-        local_calc_dir: str,
-        n_atoms: int,
-        masses: int,
-        angle_coeff: float,
-        pruning: str,
-        pruning_parameters: str,
-        noise: str,
-        strain_direction: str = 'x',
-
-    ):
+    local_calc_dir: str,
+    n_atoms: int,
+    masses: int,
+    angle_coeff: float,
+    pruning: str,
+    pruning_parameters: str,
+    noise: str,
+    strain: float,
+    strain_direction: str = 'x',
+):
     os.makedirs(local_calc_dir)
     assert(os.path.exists(local_calc_dir) and os.path.isdir(local_calc_dir))
     print(local_calc_dir)
@@ -186,13 +186,16 @@ def run_one_calc(
     # Set angle coeffs for all angles
     new_network.set_angle_coeff(angle_coeff)
 
+
     # Save the network into a file
+    for bond in new_network.bonds:
+        bond.bond_coefficient = bond.bond_coefficient * 10
     new_network.write_to_file(os.path.join(local_calc_dir, "network.lmp"))
 
     # Run compression simulation
     comp_sim = CompressionSimulation(
         network_filename="network.lmp",  # do not change!
-        strain=0.03,  # % of box X dimension
+        strain=strain,  # % of box X dimension
         strain_rate=1e-5,  # speed of compression
         strain_direction=strain_direction,
         desired_step_size=0.001,
@@ -372,6 +375,7 @@ if __name__ == "__main__":
     prunings = []
     pps = []
     noises = []
+    strains = []
     strain_dirs = []
     for size in n_atoms:
         for i in range(batch_size):
@@ -381,10 +385,11 @@ if __name__ == "__main__":
             prunings.append(pruning)
             pps.append(pruning_parameters)
             noises.append(add_noise)
+            strains.append(strain)
             strain_dirs.append('x')
             paths.append(os.path.join(calculation_directory, f"{size}_{4}", "network_data", str(i+1)))
     
-    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, noises, strain_dirs))
+    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, noises, strains, strain_dirs))
 
     with Pool(cores) as p:
         p.starmap(run_one_calc, inputs)

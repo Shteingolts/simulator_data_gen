@@ -10,6 +10,7 @@ from torch import Tensor
 from matplotlib.patches import Patch
 from torch_geometric.data import Data
 
+from lammps_scripts import LJSimulation, TemperatureRange
 from network import Box
 import network
 
@@ -396,3 +397,39 @@ def inject_noise(input_network: network.Network, std: float | None = None, angle
     _new_bonds = recalc_bonds(input_network, periodic=True)
     input_network.angles = input_network._compute_angles_fast(angle_coeffs)
     return input_network
+
+def radius_graph(graph: Data, r: float) -> Tensor:
+    G = nx.Graph()
+    nodes = [(idx, {"pos":node}) for idx, node in enumerate(graph.x)]
+    G.add_nodes_from(nodes)
+    edge_index = torch.tensor(nx.geometric_edges(G, r)).T
+    return edge_index
+
+def add_edges_LJ(graph: Data, r: float, edge_attr: str = "vecs") -> Data:
+    edge_index = radius_graph(graph, r=r)
+    tmp = Data(
+        x=graph.x,
+        edge_index=edge_index,
+        box=graph.box
+    )
+    # will not create any periodic edges most likely
+    edge_vecs = get_correct_edge_vec(tmp)
+
+    return Data(x=tmp.x, edge_index=tmp.edge_index, edge_attr=edge_vecs, box=tmp.box)
+
+def randomize_LJ(n_atoms: int):
+    atom_types = random.randint(2, 2)
+    # atom_sizes = [random.uniform(0.3, 4.0) for i in range(atom_types)]
+    print(atom_types)
+    # print(atom_sizes)
+    lj_sim = LJSimulation(
+        n_atoms=n_atoms,
+        n_atom_types=atom_types,
+        atom_sizes=[0.3, 1.0],
+        box_dim=[-40, 40, -40, 40, -0.1, 0.1],
+        temperature_range=TemperatureRange(T_start=0.005, T_end=0.001, bias=10.0),
+        Kn=0.5,
+        n_parts=[40, 60],
+        n_steps=30000
+    )
+    return lj_sim

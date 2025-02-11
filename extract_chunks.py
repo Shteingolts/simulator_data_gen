@@ -40,17 +40,21 @@ def writer(output_dir: str, output_queue: Queue):
         torch.save(data, file_path)
         chunk_id += 1
 
+
 def main():
-    raw_data_path = "/home/sergey/work/simulator_data_gen/no_pruning"
-    binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/large_noised"
+    raw_data_path = "/home/sergey/work/simulator_data_gen/data/raw/200_networks"
+    binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/test_step_0.002"
     
     paths = []
     for t in listdir(raw_data_path):
-        if t != "data_generation.log":
-            current_dir = join(raw_data_path, t, "network_data")
-            for d in listdir(current_dir):
-                local_dir = join(current_dir, d)
-                paths.append(local_dir)
+        # if t != "data_generation.log":
+        for comp_dir in os.listdir(os.path.join(raw_data_path, t)):
+            if comp_dir.startswith("comp_") and comp_dir.split("_")[-1] == str(0.002):
+                current_dir = join(raw_data_path, t, comp_dir)
+                paths.append(current_dir)
+                # for d in listdir(current_dir):
+                #     local_dir = join(current_dir, d)
+                #     paths.append(local_dir)
     
     num_workers = multiprocessing.cpu_count()
 
