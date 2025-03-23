@@ -130,6 +130,7 @@ def run_one_calc(
     pruning_parameters: str,
     noise: str,
     strain: float,
+    desired_step_size: float,
     strain_direction: str = 'x',
 ):
     os.makedirs(local_calc_dir)
@@ -198,7 +199,7 @@ def run_one_calc(
         strain=strain,  # % of box X dimension
         strain_rate=1e-5,  # speed of compression
         strain_direction=strain_direction,
-        desired_step_size=0.001,
+        desired_step_size=desired_step_size,
         temperature_range=TemperatureRange(1e-7, 1e-7, 10.0),
     )
 
@@ -315,7 +316,6 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     strain = args.strain
     strain_rate = args.strain_rate
-    strain_rate = args.strain_rate
     dump_strain_step_size = args.dump_strain_step_size
     compression_temperature_range = TemperatureRange(1e-7, 1e-7, 10.0)
     mass = args.masses
@@ -376,6 +376,7 @@ if __name__ == "__main__":
     pps = []
     noises = []
     strains = []
+    dump_freq = []
     strain_dirs = []
     for size in n_atoms:
         for i in range(batch_size):
@@ -386,10 +387,11 @@ if __name__ == "__main__":
             pps.append(pruning_parameters)
             noises.append(add_noise)
             strains.append(strain)
+            dump_freq.append(dump_strain_step_size)
             strain_dirs.append('x')
             paths.append(os.path.join(calculation_directory, f"{size}_{4}", "network_data", str(i+1)))
     
-    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, noises, strains, strain_dirs))
+    inputs = list(zip(paths, atoms, masses, angles, prunings, pps, noises, strains, dump_freq, strain_dirs))
 
     with Pool(cores) as p:
         p.starmap(run_one_calc, inputs)

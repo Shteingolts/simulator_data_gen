@@ -317,21 +317,24 @@ class CompressionSimulation:
         strain_direction: str = "x",
         box_size: float = 15.0,
         network_filename: str = "network.lmp",
+        dt: float = 0.01,
         strain: float = 0.03,
         strain_rate: float = 1e-5,
         desired_step_size: float = 0.001,
+        random_seed: bool = False,
         disable_nph: bool = False,
         temperature_range: TemperatureRange = TemperatureRange()
     ) -> None:
         self.network_filename = network_filename
+        self.dt = dt
         self.strain = strain
         self.strain_rate = strain_rate
         self.temperature_range = temperature_range
         self.desired_step_size = desired_step_size
         self.strain_direction = strain_direction
         self.fix_axis = 'y' if self.strain_direction == 'x' else 'x'
-        # assume strain 0.025, srate 1e-5, dt 0.01
-        self.dump_frequency = int((self.strain / self.strain_rate / 0.01) / (box_size * self.strain / self.desired_step_size))
+        self.dump_frequency = int((self.strain / self.strain_rate / self.dt) / (box_size * self.strain / self.desired_step_size))
+        self.random_seed = 904297 if random_seed is False else random.randint(1, 999999)
         self.disable_nph = disable_nph
 
         if self.disable_nph:
@@ -340,11 +343,11 @@ class CompressionSimulation:
             self.nph_line = f"fix             6 all nph {self.fix_axis} 0.0 0.0 1000.0 ptemp 0.0001"
 
     def _recalc_dump_freq(self, box_size):
-        self.dump_frequency = int((self.strain / self.strain_rate / 0.01) / (box_size * self.strain / self.desired_step_size))
+        self.dump_frequency = int((self.strain / self.strain_rate / self.dt) / (box_size * self.strain / self.desired_step_size))
 
     def write_to_file(self, directory: str | None = None):
         deformation_script_template: str = f"""
-variable dt equal 0.01
+variable dt equal {self.dt}
 variable strain equal {self.strain}
 variable srate equal {self.strain_rate}
 variable M equal 1000 # averaging time for properties
@@ -378,7 +381,7 @@ variable nsteps equal round(${{strainsteps}})
 #fix             4 all nve
 #fix		     6 all press/berendsen y  0.0 0.0 1 x 0.0 0.0 10
 #fix             6 all npt temp 0.0001 0.0001 1000.0 y 0.0 0.0 1000.0
-fix             5 all langevin {self.temperature_range.T_start} {self.temperature_range.T_end} {self.temperature_range.bias} 904297
+fix             5 all langevin {self.temperature_range.T_start} {self.temperature_range.T_end} {self.temperature_range.bias} {self.random_seed}
 {self.nph_line}
 fix     	     9 all deform 1 {self.strain_direction} erate -${{srate}} units box remap x
 

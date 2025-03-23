@@ -9,6 +9,7 @@ import torch
 import network
 from convert import parse_dump
 
+
 def extract_from_dump(path: str):
     print(path)
     current_network = network.Network.from_data_file(
@@ -42,19 +43,27 @@ def writer(output_dir: str, output_queue: Queue):
 
 
 def main():
-    raw_data_path = "/home/sergey/work/simulator_data_gen/data/raw/200_networks"
-    binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/test_step_0.002"
+    raw_data_path = "/home/sergey/work/simulator_data_gen/one_over_l"
+    binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/data_dePablo_OOL_SR=0.001"
     
+    # dePablo networks parse
     paths = []
-    for t in listdir(raw_data_path):
-        # if t != "data_generation.log":
-        for comp_dir in os.listdir(os.path.join(raw_data_path, t)):
-            if comp_dir.startswith("comp_") and comp_dir.split("_")[-1] == str(0.002):
-                current_dir = join(raw_data_path, t, comp_dir)
-                paths.append(current_dir)
-                # for d in listdir(current_dir):
-                #     local_dir = join(current_dir, d)
-                #     paths.append(local_dir)
+    for size_dir in listdir(raw_data_path):
+        if size_dir != "data_generation.log":
+            for net_dir in os.listdir(os.path.join(raw_data_path, size_dir)):
+                for comp_dir in os.listdir(os.path.join(raw_data_path, size_dir, net_dir)):
+                    if comp_dir.startswith("comp_") and comp_dir.endswith('_SR=0.001'):
+                        current_dir = join(raw_data_path, size_dir, net_dir, comp_dir)
+                        paths.append(current_dir)
+
+    # normal data parse
+    # paths = []
+    # for t in listdir(raw_data_path):
+    #     if t != "data_generation.log":
+    #         for comp_dir in os.listdir(os.path.join(raw_data_path, t, "network_data")):
+    #             current_dir = join(raw_data_path, t, "network_data", comp_dir)
+    #             paths.append(current_dir)
+
     
     num_workers = multiprocessing.cpu_count()
 

@@ -22,3 +22,17 @@ constant_step_bimodal
 constant_step
 data
 data_big_pruned.tar
+410_networks
+dePablo_network.lmp
+lammps_t_over_p
+lammps_strain_speed_dePablo
+lammps_strain_speed
+lammps_random_seed
+lammps_big_step_dePablo
+one_over_l
+validation_Tover10.pt
+validation_Ttimes1.pt
+validation_Ttimes100.pt
+validation_Ttimes1000.pt
+validation_Ttimes10000.pt
+validation_Ttimes10.pt

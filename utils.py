@@ -398,12 +398,14 @@ def inject_noise(input_network: network.Network, std: float | None = None, angle
     input_network.angles = input_network._compute_angles_fast(angle_coeffs)
     return input_network
 
+
 def radius_graph(graph: Data, r: float) -> Tensor:
     G = nx.Graph()
     nodes = [(idx, {"pos":node}) for idx, node in enumerate(graph.x)]
     G.add_nodes_from(nodes)
     edge_index = torch.tensor(nx.geometric_edges(G, r)).T
     return edge_index
+
 
 def add_edges_LJ(graph: Data, r: float, edge_attr: str = "vecs") -> Data:
     edge_index = radius_graph(graph, r=r)
@@ -416,6 +418,7 @@ def add_edges_LJ(graph: Data, r: float, edge_attr: str = "vecs") -> Data:
     edge_vecs = get_correct_edge_vec(tmp)
 
     return Data(x=tmp.x, edge_index=tmp.edge_index, edge_attr=edge_vecs, box=tmp.box)
+
 
 def randomize_LJ(n_atoms: int):
     atom_types = random.randint(2, 2)
