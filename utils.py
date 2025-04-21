@@ -169,44 +169,59 @@ def add_pruned_bonds_back(original_network: network.Network, pruned_network: net
 
 
 def get_correct_edge_vec(original_graph: Data) -> Tensor:
-    original_source_nodes = original_graph.x[original_graph.edge_index[0]]
-    original_target_nodes = original_graph.x[original_graph.edge_index[1]]
-    
+    # Extract source and target node coordinates
+    original_source_nodes = original_graph.x[original_graph.edge_index[0]][:, 0:2]
+    original_target_nodes = original_graph.x[original_graph.edge_index[1]][:, 0:2]
+
+    # Extract box dimensions
     box = original_graph.box
-    naive_edge_vectors = original_graph.x[original_graph.edge_index[0]] - original_graph.x[original_graph.edge_index[1]]
 
-    fixed_target_nodes_x = torch.zeros_like(original_target_nodes[:, 0])
-    for index, edge in enumerate(naive_edge_vectors[:, 0]):
-        if torch.abs(edge) > box.x / 2:
-            changed = original_source_nodes[:, 0][index] +\
-                torch.sign(original_source_nodes[:, 0][index]) * (
-                    box.x / 2 - torch.abs(original_source_nodes[:, 0][index])
-                    + box.x / 2 - torch.abs(original_target_nodes[:, 0][index])
-                    )
-            fixed_target_nodes_x[index] = changed
-    
-    for i, v in enumerate(fixed_target_nodes_x):
-        if v == 0:
-            fixed_target_nodes_x[i] = original_target_nodes[:, 0][i]
+    # Compute naive edge vectors
+    naive_edge_vectors = original_source_nodes - original_target_nodes
 
-    fixed_target_nodes_y = torch.zeros_like(original_target_nodes[:, 1])
-    for index, edge in enumerate(naive_edge_vectors[:, 1]):
-        if torch.abs(edge) > box.y / 2:
-            changed = original_source_nodes[:, 1][index] +\
-                torch.sign(original_source_nodes[:, 1][index]) * (
-                    box.y / 2 - torch.abs(original_source_nodes[:, 1][index])
-                    + box.y / 2 - torch.abs(original_target_nodes[:, 1][index])
-                    )
+    # Compute corrections for x-coordinates
+    adjust_x = torch.abs(naive_edge_vectors[:, 0]) > (box.x / 2)
+    correction_x = torch.sign(original_source_nodes[:, 0]) * (
+        box.x / 2
+        - torch.abs(original_source_nodes[:, 0])
+        + box.x / 2
+        - torch.abs(original_target_nodes[:, 0])
+    )
+    fixed_target_nodes_x = torch.where(
+        adjust_x,
+        original_source_nodes[:, 0] + correction_x,
+        original_target_nodes[:, 0],
+    )
 
-            fixed_target_nodes_y[index] = changed
-    
-    for i, v in enumerate(fixed_target_nodes_y):
-        if v == 0:
-            fixed_target_nodes_y[i] = original_target_nodes[:, 1][i]
+    # Compute corrections for y-coordinates
+    adjust_y = torch.abs(naive_edge_vectors[:, 1]) > (box.y / 2)
+    correction_y = torch.sign(original_source_nodes[:, 1]) * (
+        box.y / 2
+        - torch.abs(original_source_nodes[:, 1])
+        + box.y / 2
+        - torch.abs(original_target_nodes[:, 1])
+    )
+    fixed_target_nodes_y = torch.where(
+        adjust_y,
+        original_source_nodes[:, 1] + correction_y,
+        original_target_nodes[:, 1],
+    )
 
-    fixed_target_nodes = torch.column_stack([fixed_target_nodes_x, fixed_target_nodes_y])
+    # Combine the corrected coordinates
+    fixed_target_nodes = torch.column_stack(
+        [fixed_target_nodes_x, fixed_target_nodes_y]
+    )
+
+    # Compute the fixed edge vectors
     fixed_edge_vectors = fixed_target_nodes - original_source_nodes
     return fixed_edge_vectors
+
+
+def get_correct_edge_attr(original_graph: Data) -> Tensor:
+    edge_vectors = get_correct_edge_vec(original_graph)
+    lengths = torch.norm(edge_vectors, dim=1)
+    bond_coeffs = 1 / torch.pow(lengths, 2)
+    return torch.column_stack((edge_vectors, lengths, bond_coeffs))
 
 
 def get_correct_distances(graph: Data, updated_graph: Data) -> Tensor:

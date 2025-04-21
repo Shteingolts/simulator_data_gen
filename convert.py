@@ -329,7 +329,9 @@ def network_from_data(data_object: Data, box: Box | None = None) -> network.Netw
     bonds=[]
     for index, ((source_id, target_id), (ux, uy, length, k)) in enumerate(zip(data_object.edge_index.T, data_object.edge_attr)):
         atom1 = atoms[int(source_id)]
+        atom1.n_bonds += 1
         atom2 = atoms[int(target_id)]
+        atom2.n_bonds += 1
         bond_coefficient = float(k)
         length = float(length)
         

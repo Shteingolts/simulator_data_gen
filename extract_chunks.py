@@ -1,7 +1,7 @@
-from multiprocessing import Pool, Queue
 import multiprocessing
-from os import listdir
 import os
+from multiprocessing import Pool, Queue
+from os import listdir
 from os.path import join
 
 import torch
@@ -43,8 +43,8 @@ def writer(output_dir: str, output_queue: Queue):
 
 
 def main():
-    raw_data_path = "/home/sergey/work/simulator_data_gen/one_over_l"
-    binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/data_dePablo_OOL_SR=0.001"
+    raw_data_path = "/home/sergey/work/simulator_data_gen/1000_networks"
+    binary_data_path = "/home/sergey/work/simulator_data_gen/data/binary/5000_dePablo_networks_OOL"
     
     # dePablo networks parse
     paths = []
@@ -52,11 +52,12 @@ def main():
         if size_dir != "data_generation.log":
             for net_dir in os.listdir(os.path.join(raw_data_path, size_dir)):
                 for comp_dir in os.listdir(os.path.join(raw_data_path, size_dir, net_dir)):
-                    if comp_dir.startswith("comp_") and comp_dir.endswith('_SR=0.001'):
+                    # if comp_dir.startswith("comp_") and comp_dir.endswith('_step_size_0.003'):
+                    if comp_dir.startswith("comp_"):
                         current_dir = join(raw_data_path, size_dir, net_dir, comp_dir)
                         paths.append(current_dir)
 
-    # normal data parse
+    # Normal data parse
     # paths = []
     # for t in listdir(raw_data_path):
     #     if t != "data_generation.log":
@@ -65,7 +66,8 @@ def main():
     #             paths.append(current_dir)
 
     
-    num_workers = multiprocessing.cpu_count()
+    # num_workers = multiprocessing.cpu_count()
+    num_workers = 8
 
     # Create a queue for inter-process communication
     output_queue = multiprocessing.Queue()

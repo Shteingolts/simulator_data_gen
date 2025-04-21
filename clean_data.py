@@ -11,7 +11,7 @@ for subdir in os.listdir(path):
         for file in os.listdir(subpath):
             local_path = os.path.join(subpath, file)
             for random_stuff in os.listdir(local_path):
-                if random_stuff.startswith("proc_") or "Ttimes10000" in random_stuff:
+                if random_stuff.startswith("proc_") or "step_size_1e-05" in random_stuff:
                     print(f"Removing {os.path.join(local_path, random_stuff)}")
                     shutil.rmtree(os.path.join(local_path, random_stuff))
 
